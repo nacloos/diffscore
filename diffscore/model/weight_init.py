@@ -2,26 +2,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-# from config_utils.dict_utils import dict_get, dict_in
 
-
-registry = {}
-
-def weight_initialization(name):
-    def weight_init_wrapper(func):
-        registry[name] = func
-        return func
-    return weight_init_wrapper
-
-
-def init_param_from_registry(param, init_name, init_kwargs):
-    print("Init {}, kwargs {}".format(init_name, init_kwargs))
-    param = registry[init_name](param, **init_kwargs)
-    return param
-
-
-# TODO: use regsiter/make
 def init_param(param, init_type):
+    if init_type is None:
+        return param
+
     if isinstance(init_type, str):
         dim_recurrent = param.shape[0]
 
@@ -82,42 +67,3 @@ def init_param(param, init_type):
         raise TypeError("Expected type str or dict, got {} for {}".format(type(init_type), init_type))
 
     return param
-
-
-def init_weights(model, init_type, debug=False):
-    """
-    Args:
-        model: pytorch model
-        init_type: dict specifying the initialization types of the model parameters
-            e.g. {"fc_rec": {"weight": "zero"}}
-    """
-    state_dict = model.state_dict()
-    for param_name, param in model.named_parameters():
-        print("Param: {}".format(param_name)) if debug else None
-        if param_name.startswith('model.'):
-            # remove 'model.' from param_name
-            param_name = param_name.split('model.')[1]
-            # TODO: temporary
-            starts_with_model = True
-        else:
-            starts_with_model = False
-
-        # param_name uses dot dict indexing
-        if dict_in(init_type, param_name):
-            _init_type = dict_get(init_type, param_name)
-            print("Init: {}, type: {}".format(param_name, _init_type)) if debug else None
-
-            if isinstance(_init_type, dict) and 'name' in _init_type:
-                init_name = _init_type.pop('name')
-                param = init_param_from_registry(param, init_name, _init_type)
-            else:
-                # backward compatibility
-                param = init_param(param, _init_type)
-
-            if starts_with_model:
-                param_name = 'model.{}'.format(param_name)
-
-            state_dict[param_name] = param
-
-        model.load_state_dict(state_dict)
-    return model

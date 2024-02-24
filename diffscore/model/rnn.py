@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 
 from .weight_init import init_param
-from .activation_fn import get_activation_fn, computef
+from .activation_fn import get_activation_fn
 
 
 # TODO: really need base class?
@@ -74,10 +74,8 @@ class CTRNN(BaseRNN):
         self.fc_rec = nn.Linear(self.hidden_size, self.hidden_size, bias=True)
         self.fc_in = nn.Linear(self.input_size, self.hidden_size, bias=False)
 
-        if rec_init is not None:
-            self.fc_rec.weight = init_param(self.fc_rec.weight, rec_init)
-        if in_init is not None:
-            self.fc_in.weight = init_param(self.fc_in.weight, in_init)
+        self.fc_rec.weight = init_param(self.fc_rec.weight, rec_init)
+        self.fc_in.weight = init_param(self.fc_in.weight, in_init)
 
         self.h0 = torch.zeros(self.hidden_size)
         if self.learn_init_state:
@@ -108,7 +106,7 @@ class CTRNN(BaseRNN):
 
 
 class LowPassCTRNN(BaseRNN):
-    def __init__(self, input_size, hidden_size, output_size, tau, dt, act_fn='Tanh', noise_std=0, learn_init_state=True, rec_init=""):
+    def __init__(self, input_size, hidden_size, output_size, tau, dt, act_fn='Tanh', noise_std=0, learn_init_state=True, rec_init=None):
         super().__init__(input_size, hidden_size, output_size)
         self.tau = tau  # neuronal time constants (ms)
         self.dt = dt
@@ -121,14 +119,12 @@ class LowPassCTRNN(BaseRNN):
         self.fc_rec = nn.Linear(self.hidden_size, self.hidden_size, bias=True)
         self.fc_in = nn.Linear(self.input_size, self.hidden_size, bias=False)
 
+        self.fc_rec.weight = init_param(self.fc_rec.weight, rec_init)
+
         self.h0 = torch.zeros(self.hidden_size)
         if self.learn_init_state:
             self.h0 = torch.nn.Parameter(self.h0, requires_grad=True)
 
-        if rec_init == "sussillo":
-            print("Init sussillo")
-            W = 1.5 * torch.randn(self.hidden_size, self.hidden_size) / math.sqrt(self.hidden_size)
-            self.fc_rec.weight = torch.nn.Parameter(W)
 
     def init_state(self, batch_size):
         init_state = self.h0.repeat(batch_size, 1)
@@ -143,7 +139,7 @@ class LowPassCTRNN(BaseRNN):
 class LSTM(BaseRNN):
     def __init__(self, input_size, hidden_size, output_size, act_fn):
         super().__init__(input_size, hidden_size, output_size)
-        self.act_fn = act_fn
+        self.act_fn = get_activation_fn(act_fn)
 
         self.fc_i_x2i = nn.Linear(input_size, hidden_size)  # Wix @ x + bi
         self.fc_i_h2i = nn.Linear(hidden_size, hidden_size, bias=False)  # Wih @ h
@@ -182,11 +178,8 @@ class LSTM(BaseRNN):
         f = torch.sigmoid(self.fc_f_x2f(inp) + self.fc_f_h2f(h))
         z = torch.tanh(self.fc_z_x2z(inp) + self.fc_z_h2z(h))
         self.c = i*z + f*self.c
-        h = o*computef(self.c, self.act_fn)
+        h = o*self.act_fn(self.c)
 
         if self.noise_std is not None:
             h += (self.noise_std*torch.randn(h.shape))
         return h
-
-    def get_weights(self):
-        return self.fc_z_h2z.weight.detach()
