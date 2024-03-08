@@ -16,7 +16,7 @@ import neurogym as ngym
 class NGymLitTrainer:
     """
     Trainer for neurogym environments using pytorch lightning.
-    
+
     Args:
         loss_fn: loss function, e.g. MSELoss, CrossEntropyLoss, etc.
         optimizer: optimizer, e.g. Adam, SGD, etc.

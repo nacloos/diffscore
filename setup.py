@@ -11,6 +11,7 @@ setup(
         'gym==0.25',
         # TODO: register neurogym on pypi
         'neurogym @ git+https://github.com/neurogym/neurogym.git',
+        'similarity-repository @ git+https://github.com/nacloos/similarity-repository.git'
     ],
     description='',
     author=''
