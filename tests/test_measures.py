@@ -47,4 +47,3 @@ def test_measure_optim():
 if __name__ == "__main__":
     test_measures()
     test_measure_optim()
-
