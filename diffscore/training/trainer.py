@@ -382,6 +382,12 @@ class LitModule(pl.LightningModule):
         return action_pred
 
 
+class NGymDataLoader(DataLoader):
+    def __init__(self, env, batch_size):
+        dataset = NGymOnlineDataset(env, n_samples=batch_size)
+        super().__init__(dataset, batch_size=batch_size)
+
+
 class NGymDataset(torch.utils.data.Dataset):
     def __init__(self, env, n_samples, condition=None, seq_len=None):
         if seq_len is None:

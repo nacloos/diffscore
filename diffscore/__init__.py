@@ -1,4 +1,6 @@
 import similarity
+# temp use registry from similarity
+from similarity import make, register
 
 from diffscore import analysis as analysis
 from diffscore import training as training
