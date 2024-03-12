@@ -18,6 +18,7 @@ class RegCCA:
         self.scoring_method = scoring_method
 
     def fit(self, X, Y):
+        X, Y = torch.as_tensor(X), torch.as_tensor(Y)
         if len(X.shape) == 3:
             X = X.reshape(X.shape[0]*X.shape[1], -1).double()
             Y = Y.reshape(Y.shape[0]*Y.shape[1], -1).double()
@@ -36,7 +37,6 @@ class RegCCA:
         Xw, Zx = whiten(X, self.alpha)
         Yw, Zy = whiten(Y, self.alpha)
 
-        _, sigma, _ = torch.linalg.svd(Xw.T @ Yw)
         U, _, Vt = torch.linalg.svd(Xw.T @ Yw)
 
         Zx = Zx.double()
@@ -47,6 +47,7 @@ class RegCCA:
         return self
 
     def score(self, X, Y):
+        X, Y = torch.as_tensor(X), torch.as_tensor(Y)
         if len(X.shape) == 3:
             X = X.reshape(X.shape[0]*X.shape[1], -1).double()
             Y = Y.reshape(Y.shape[0]*Y.shape[1], -1).double()
@@ -72,62 +73,47 @@ class RegCCA:
             raise NotImplementedError
         return dist
 
-    def eval(self, activities):
-        act1, act2 = activities
-        X = act1.reshape(act1.shape[0]*act1.shape[1], -1)
-        Y = act2.reshape(act2.shape[0]*act2.shape[1], -1)
-        X = X.double()
-        Y = Y.double()
-        # print("X, Y", X.shape, Y.shape)
+    def fit_score(self, X, Y):
+        return self.fit(X, Y).score(X, Y)
 
-        # metric = LinearMetric(alpha=self.alpha)
-        # metric.fit(X.detach().numpy(), Y.detach().numpy())
-        # gt = metric.score(X.detach().numpy(), Y.detach().numpy())
-        # Xtsf, Ytsf = metric.transform(X.detach().numpy(), Y.detach().numpy())
+    def __call__(self, X, Y):
+        return self.fit_score(X, Y)
 
-        # zero padding
-        X, Y = check_equal_shapes(X, Y, nd=2, zero_pad=self.zero_pad)
-        # pad = torch.zeros(60, 2)
-        # X = torch.concat([X, pad], dim=-1)
-        # print("After padding", X.shape, Y.shape)
 
-        # centering
-        X = X - torch.mean(X, dim=0)
-        Y = Y - torch.mean(Y, dim=0)
+class CKA:
+    def __init__(self, arccos=False):
+        self.arccos = arccos
 
-        Xw, Zx = whiten(X, self.alpha)
-        Yw, Zy = whiten(Y, self.alpha)
-        # assert np.allclose(Xw.detach().numpy(), metric.Xw), np.max(np.abs(Xw.detach().numpy() - metric.Xw))
-        # assert np.allclose(Yw.detach().numpy(), metric.Yw), np.max(np.abs(Yw.detach().numpy() - metric.Yw))
+    def score(self, X, Y):
+        X, Y = torch.as_tensor(X), torch.as_tensor(Y)
+        # X: time x trial x neuron
+        X = X.reshape(X.shape[0]*X.shape[1], -1)
+        Y = Y.reshape(Y.shape[0]*Y.shape[1], -1)
+        # score = linear_CKA(X1, X2)
+        # assert torch.allclose(cka_svd(X1@X1.T, X2@X2.T), score)
+        score = cka_svd(X@X.T, Y@Y.T)
+        return score if not self.arccos else torch.arccos(score)
 
-        _, sigma, _ = torch.linalg.svd(Xw.T @ Yw)
+    def __call__(self, X, Y):
+        return self.score(X, Y)
 
-        U, _, Vt = torch.linalg.svd(Xw.T @ Yw)
 
-        # assert np.allclose(U.detach().numpy(), metric.U), np.max(np.abs(U.detach().numpy() - metric.U))
-        # assert np.allclose(Vt.T.detach().numpy(), metric.V)
-        X = Xw @ U
-        Y = Yw @ Vt.T
+class RSA:
+    def __init__(self, arccos=False):
+        self.arccos = arccos
 
-        # assert np.allclose(X.detach().numpy(), Xtsf, atol=1e-6), np.max(np.abs(X.detach().numpy() - Xtsf))
-        # assert np.allclose(Y.detach().numpy(), Ytsf, atol=1e-6)
+    def score(self, X, Y):
+        X, Y = torch.as_tensor(X), torch.as_tensor(Y)
+        # X: time x trial x neuron
+        X = X.reshape(X.shape[0]*X.shape[1], -1)
+        Y = Y.reshape(Y.shape[0]*Y.shape[1], -1)
 
-        if self.scoring_method == 'angular':
-            normalizer = torch.linalg.norm(X.ravel()) * torch.linalg.norm(Y.ravel())
-            dist_bis = torch.sum(sigma) / normalizer
-            dist_bis = torch.arccos(dist_bis)
+        XX, YY = centering(X@X.T), centering(Y@Y.T)
+        score = torch.sum(XX*YY)/(torch.linalg.norm(XX.reshape(-1))*torch.linalg.norm(YY.reshape(-1)))
+        return score if not self.arccos else torch.arccos(score)
 
-            dist = torch.dot(X.ravel(), Y.ravel()) / normalizer
-            dist = torch.arccos(dist)
-            # assert np.allclose(dist.detach().numpy(), gt, atol=1e-6), "{} != {}".format(dist.detach().numpy(), gt)
-            # assert torch.allclose(dist, dist_bis, atol=1e-6), "{} != {}".format(dist.detach().numpy(), dist_bis)
-
-        elif self.scoring_method == 'euclidean':
-            dist = torch.linalg.norm(X - Y, ord='fro')
-
-        else:
-            raise NotImplementedError
-        return dist
+    def __call__(self, X, Y):
+        return self.score(X, Y)
 
 
 def whiten(X, alpha, preserve_variance=True, eigval_tol=1e-7):
@@ -208,36 +194,6 @@ def check_equal_shapes(X, Y, nd=2, zero_pad=False):
     return X, Y
 
 
-class CKA:
-    def __init__(self, arccos=False):
-        self.arccos = arccos
-
-    def eval(self, activities):
-        # activity: time x trial x neuron
-        act1, act2 = activities
-        X1 = act1.reshape(act1.shape[0]*act1.shape[1], -1)
-        X2 = act2.reshape(act2.shape[0]*act2.shape[1], -1)
-        # score = linear_CKA(X1, X2)
-        # assert torch.allclose(cka_svd(X1@X1.T, X2@X2.T), score)
-        score = cka_svd(X1@X1.T, X2@X2.T)
-        return score if not self.arccos else torch.arccos(score)
-
-
-class RSA:
-    def __init__(self, arccos=False):
-        self.arccos = arccos
-
-    def eval(self, activities):
-        # activity: time x trial x neuron
-        act1, act2 = activities
-        X = act1.reshape(act1.shape[0]*act1.shape[1], -1)
-        Y = act2.reshape(act2.shape[0]*act2.shape[1], -1)
-
-        XX, YY = centering(X@X.T), centering(Y@Y.T)
-        score = torch.sum(XX*YY)/(torch.linalg.norm(XX.reshape(-1))*torch.linalg.norm(YY.reshape(-1)))
-        return score if not self.arccos else torch.arccos(score)
-
-
 def centering(K):
     n = K.shape[0]
     unit = torch.ones([n, n], dtype=K.dtype)
@@ -283,7 +239,7 @@ def cka_angular():
     def _fit_score(X, Y):
         X = torch.as_tensor(X)
         Y = torch.as_tensor(Y)
-        return cka.eval([X, Y])
+        return cka(X, Y)
     return _fit_score
 
 
@@ -295,13 +251,17 @@ def _():
     return _fit_score
 
 
+# TODO: correlation-corr correct?
+register("measure.pytorch-rsa-correlation-corr", partial(RSA, arccos=False))
+
+
 @register("measure.pytorch-procrustes-angular")
 def procrustes_angular():
     cca = RegCCA(alpha=1)
     def _fit_score(X, Y):
         X = torch.as_tensor(X)
         Y = torch.as_tensor(Y)
-        return cca.eval([X, Y])
+        return cca(X, Y)
     return _fit_score
 
 
@@ -366,7 +326,7 @@ def _():
     def _fit_score(X, Y):
         X = torch.as_tensor(X)
         Y = torch.as_tensor(Y)
-        return cca.eval([X, Y])
+        return cca(X, Y)
     return _fit_score
 
 
@@ -376,7 +336,7 @@ def cca_angular():
     def _fit_score(X, Y):
         X = torch.as_tensor(X)
         Y = torch.as_tensor(Y)
-        return cca.eval([X, Y])
+        return cca(X, Y)
     return _fit_score
 
 
@@ -724,6 +684,25 @@ def _():
         return cka
     return _fit_score
 
+
+@register("measure.diffscore.ensd")
+def _():
+    def _fit_score(X, Y):
+        X = torch.as_tensor(X.reshape(X.shape[0]*X.shape[1], X.shape[2]))
+        Y = torch.as_tensor(Y.reshape(Y.shape[0]*Y.shape[1], Y.shape[2]))
+        # centering
+        X = X - torch.mean(X, dim=0)
+        Y = Y - torch.mean(Y, dim=0)
+
+        # https://www.biorxiv.org/content/10.1101/2023.07.27.550815v1.full.pdf
+        YtX = Y.T @ X
+        XtY = YtX.T
+        XtX = X.T @ X
+        YtY = Y.T @ Y
+        score = torch.trace(YtX @ XtY) * torch.trace(XtX) * torch.trace(YtY) / (torch.trace(XtX @ XtX) * torch.trace(YtY @ YtY))
+
+        return score
+    return _fit_score
 
 measure_ids = make(id="measure.pytorch-*").keys()
 for measure_id in measure_ids:
