@@ -7,6 +7,7 @@ from diffscore import analysis as analysis
 from diffscore import model as model
 from diffscore import dataset as dataset
 from diffscore import env as env
+# TODO: have to import training after env because use env in training?
 from diffscore import training as training
 
 from diffscore.analysis import Measure
