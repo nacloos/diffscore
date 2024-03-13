@@ -35,7 +35,7 @@ jobs:
         # TODO: raises an error: The conflict is caused by:
         # The user requested diffscore 0.0.1 (from /home/runner/work/diffscore/diffscore)
         # similarity-repository 0.0.1 depends on diffscore 0.0.1 (from git+https://github.com/nacloos/diffscore.git)
-        pip install -e .
+        # pip install -e .
         # ok if consistent with diffscore dep in similarity-repository
         pip install git+https://github.com/nacloos/diffscore.git
     - name: Lint with flake8
