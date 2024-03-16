@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from diffscore.analysis import Measure
+from diffscore import Measure
 
 
 class MeasureOptim:
@@ -40,7 +40,7 @@ class MeasureOptim:
             optim = torch.optim.SGD([Y], lr=self.lr)
         else:
             raise NotImplementedError
-        print("Optimizing with", optim)
+        # print("Optimizing with", optim)
 
         resample = False
         for i in range(self.n_iter):
@@ -52,7 +52,7 @@ class MeasureOptim:
                 _Y = Y
 
             score = self.measure(X, _Y)
-            print(score)
+            # print(score)
 
             if i % self.log_steps == 0:
                 print("Iter {}, similarity: {}".format(i, score))

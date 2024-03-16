@@ -1,7 +1,7 @@
 import torch
 from torch.utils.data import DataLoader
 
-from diffscore.env import Env
+from diffscore import Env
 from diffscore.training.trainer import NGymOnlineDataset
 
 

@@ -10,7 +10,8 @@ setup(
         'pytorch_lightning',
         # 'gym==0.25',  # TODO: conflict with neurogym's gym version compatibility
         'neurogym',
-        'similarity-repository @ git+https://github.com/nacloos/similarity-repository.git'
+        # TODO: error
+        # 'similarity-repository @ git+https://github.com/nacloos/similarity-repository.git'
     ],
     description='',
     author=''

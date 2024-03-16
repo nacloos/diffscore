@@ -8,6 +8,17 @@ import similarity
 from similarity import register, make
 
 
+def reshape2d(X, Y, to_tensor=True):
+    if to_tensor:
+        X = torch.as_tensor(X)
+        Y = torch.as_tensor(Y)
+    if len(X.shape) == 3:
+        X = X.reshape(X.shape[0]*X.shape[1], -1)
+    if len(Y.shape) == 3:
+        Y = Y.reshape(Y.shape[0]*Y.shape[1], -1)
+    return X, Y
+
+
 class RegCCA:
     """
     Code adapted from https://github.com/ahwillia/netrep/blob/main/netrep/metrics/linear.py
@@ -18,13 +29,9 @@ class RegCCA:
         self.scoring_method = scoring_method
 
     def fit(self, X, Y):
-        X, Y = torch.as_tensor(X), torch.as_tensor(Y)
-        if len(X.shape) == 3:
-            X = X.reshape(X.shape[0]*X.shape[1], -1).double()
-            Y = Y.reshape(Y.shape[0]*Y.shape[1], -1).double()
-        else:
-            X = X.double()
-            Y = Y.double()
+        X, Y = reshape2d(X, Y)
+        X = X.double()
+        Y = Y.double()
         # zero padding
         X, Y = check_equal_shapes(X, Y, nd=2, zero_pad=self.zero_pad)
 
@@ -47,13 +54,9 @@ class RegCCA:
         return self
 
     def score(self, X, Y):
-        X, Y = torch.as_tensor(X), torch.as_tensor(Y)
-        if len(X.shape) == 3:
-            X = X.reshape(X.shape[0]*X.shape[1], -1).double()
-            Y = Y.reshape(Y.shape[0]*Y.shape[1], -1).double()
-        else:
-            X = X.double()
-            Y = Y.double()
+        X, Y = reshape2d(X, Y)
+        X = X.double()
+        Y = Y.double()
         # zero padding
         X, Y = check_equal_shapes(X, Y, nd=2, zero_pad=self.zero_pad)
         # centering
@@ -85,10 +88,8 @@ class CKA:
         self.arccos = arccos
 
     def score(self, X, Y):
-        X, Y = torch.as_tensor(X), torch.as_tensor(Y)
         # X: time x trial x neuron
-        X = X.reshape(X.shape[0]*X.shape[1], -1)
-        Y = Y.reshape(Y.shape[0]*Y.shape[1], -1)
+        X, Y = reshape2d(X, Y)
         # score = linear_CKA(X1, X2)
         # assert torch.allclose(cka_svd(X1@X1.T, X2@X2.T), score)
         score = cka_svd(X@X.T, Y@Y.T)
@@ -103,10 +104,8 @@ class RSA:
         self.arccos = arccos
 
     def score(self, X, Y):
-        X, Y = torch.as_tensor(X), torch.as_tensor(Y)
         # X: time x trial x neuron
-        X = X.reshape(X.shape[0]*X.shape[1], -1)
-        Y = Y.reshape(Y.shape[0]*Y.shape[1], -1)
+        X, Y = reshape2d(X, Y)
 
         XX, YY = centering(X@X.T), centering(Y@Y.T)
         score = torch.sum(XX*YY)/(torch.linalg.norm(XX.reshape(-1))*torch.linalg.norm(YY.reshape(-1)))
@@ -357,12 +356,8 @@ def linreg(arccos=False, zero_pad=True):
     # ref: https://arxiv.org/pdf/1905.00414.pdf
     # R2 = 1 - min_B || X - YB ||_F^2 / || X ||_F^2 = || Q_Y.T X ||_F^2 / || X ||_F^2
     def _fit_score(X, Y):
-        n_steps, n_trials, n_neurons = X.shape
-        X = torch.as_tensor(X)
-        Y = torch.as_tensor(Y)
-        X = X.reshape(n_steps * n_trials, n_neurons)
-        Y = Y.reshape(n_steps * n_trials, Y.shape[-1])
-
+        # n_steps, n_trials, n_neurons = X.shape
+        X, Y = reshape2d(X, Y)
         # zero padding
         X, Y = check_equal_shapes(X, Y, nd=2, zero_pad=zero_pad)
 
@@ -392,8 +387,7 @@ def linreg_cv(arccos=False, zero_pad=True, n_splits=5, fit_ratio=0.8):
             self.zero_pad = zero_pad
 
         def fit(self, X, Y):
-            X = torch.as_tensor(X).reshape(X.shape[0]*X.shape[1], X.shape[2])
-            Y = torch.as_tensor(Y).reshape(Y.shape[0]*Y.shape[1], Y.shape[2])
+            X, Y = reshape2d(X, Y)
             # zero padding
             X, Y = check_equal_shapes(X, Y, nd=2, zero_pad=self.zero_pad)
 
@@ -407,8 +401,7 @@ def linreg_cv(arccos=False, zero_pad=True, n_splits=5, fit_ratio=0.8):
             self.B = torch.linalg.lstsq(Y, X).solution
 
         def score(self, X, Y):
-            X = torch.as_tensor(X).reshape(X.shape[0]*X.shape[1], X.shape[2])
-            Y = torch.as_tensor(Y).reshape(Y.shape[0]*Y.shape[1], Y.shape[2])
+            X, Y = reshape2d(X, Y)
             # zero padding
             X, Y = check_equal_shapes(X, Y, nd=2, zero_pad=self.zero_pad)
 
@@ -497,10 +490,7 @@ def measure_linreg(zero_pad=True, alpha=0, n_splits=5):
     linreg = LinRegScore()
 
     def _fit_score(X, Y):
-        X = X.reshape(X.shape[0]*X.shape[1], X.shape[2])
-        Y = Y.reshape(Y.shape[0]*Y.shape[1], Y.shape[2])
-        X = torch.as_tensor(X)
-        Y = torch.as_tensor(Y)
+        X, Y = reshape2d(X, Y)
 
         if n_splits is None:
             linreg.fit(X, Y)
@@ -558,12 +548,7 @@ register(
 
 def kfold_crossval(measure, n_splits=5):
     def _fit_score(X, Y):
-        print(X.shape, Y.shape)
-        X = X.reshape(X.shape[0]*X.shape[1], X.shape[2])
-        Y = Y.reshape(Y.shape[0]*Y.shape[1], Y.shape[2])
-        X = torch.as_tensor(X)
-        Y = torch.as_tensor(Y)
-        print(X.shape, Y.shape)
+        X, Y = reshape2d(X, Y)
 
         if n_splits is None:
             measure.fit(X, Y)
@@ -627,8 +612,7 @@ def test_pytorch_metric(dataset, metric_id):
 @register("measure.pytorch-nbs-squared")
 def _():
     def _fit_score(X, Y):
-        X = torch.as_tensor(X.reshape(X.shape[0]*X.shape[1], X.shape[2]))
-        Y = torch.as_tensor(Y.reshape(Y.shape[0]*Y.shape[1], Y.shape[2]))
+        X, Y = reshape2d(X, Y)
         # centering
         X = X - torch.mean(X, dim=0)
         Y = Y - torch.mean(Y, dim=0)
@@ -670,8 +654,7 @@ def _():
 @register("measure.pytorch-cka")
 def _():
     def _fit_score(X, Y):
-        X = torch.as_tensor(X.reshape(X.shape[0]*X.shape[1], X.shape[2]))
-        Y = torch.as_tensor(Y.reshape(Y.shape[0]*Y.shape[1], Y.shape[2]))
+        X, Y = reshape2d(X, Y)
         # centering
         X = X - torch.mean(X, dim=0)
         Y = Y - torch.mean(Y, dim=0)
@@ -688,8 +671,7 @@ def _():
 @register("measure.diffscore.ensd")
 def _():
     def _fit_score(X, Y):
-        X = torch.as_tensor(X.reshape(X.shape[0]*X.shape[1], X.shape[2]))
-        Y = torch.as_tensor(Y.reshape(Y.shape[0]*Y.shape[1], Y.shape[2]))
+        X, Y = reshape2d(X, Y)
         # centering
         X = X - torch.mean(X, dim=0)
         Y = Y - torch.mean(Y, dim=0)
