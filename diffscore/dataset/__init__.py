@@ -10,6 +10,12 @@ register("dataset.diffscore.ultrametric", ultrametric)
 # register("dataset.mante13-var99", )
 # register("dataset.siegel15", )
 
+@register("dataset.diffscore.Hatsopoulos2007")
+def hatsopoulos2007():
+    from .hatsopoulos2007 import process_data
+    # activity during movement period
+    data = process_data(condition_average=False, dt=50, align_range=(0, 500), align_event="mvt_onset")
+    return data["activity"], data["trial_info"]
 
 
 @register("dataset.diffscore.MajajHong2015")
