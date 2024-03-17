@@ -36,6 +36,8 @@ def projected_r2(X, Y):
     # zero padding
     X, Y = check_equal_shapes(X, Y, nd=2, zero_pad=True)
 
+    assert X.shape[0] > X.shape[1]
+
     # find linear alignment from Y to X (lin reg)
     Q, R = np.linalg.qr(Y)
     X_pred = Q @ (Q.T @ X)
@@ -71,17 +73,6 @@ def pc_captured_variance(X, Ys, scores, n_components=None, plot_over_scores=True
     R2s = []
     for Y in Ys:
         res = projected_r2(X, Y)
-        # if not orth:
-        #     if not cv:
-        #         res = projected_r2(X, Y)
-        #         # res = projected_r2_lstsq(X, Y)
-        #     else:
-        #         res = projected_r2_cv(X, Y, **cv_kwargs)
-        #         # res = projected_r2_cv(X, Y, plot=True)
-        # else:
-        #     assert cv is False
-        #     res = projected_r2_orth(X, Y)
-
         R2s.append(res["R2_pc"])
 
     R2s = np.array(R2s)
@@ -205,7 +196,8 @@ def pipeline_optim_score(dataset, measure, stop_score, decoder="logistic", label
         results_df = pd.concat(results)
         print(results_df)
         if save_dir:
-            results_df.to_csv(save_dir / "score_vs_decoding_acc.csv")
+            save_name = dataset if isinstance(dataset, str) else "score_vs_decoding_acc"
+            results_df.to_csv(save_dir / f"{save_name}.csv")
         return
 
     if isinstance(dataset, str):

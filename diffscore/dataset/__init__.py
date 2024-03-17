@@ -35,6 +35,29 @@ def majajhong2015():
     ]
 
     # TODO: temp for debugging
-    # X = X[:300]
-    # conditions = conditions[:300]
+    X = X[:300]
+    conditions = conditions[:300]
+    return X, conditions
+
+
+@register("dataset.diffscore.FreemanZiemba2013")
+def freemanziemba2013(bin_size=150):
+    import numpy as np
+    import brainscore_vision
+    from brainscore_vision.benchmark_helpers.neural_common import average_repetition
+
+    neural_data = brainscore_vision.load_dataset("FreemanZiemba2013.public")
+    neural_data = neural_data.transpose('time_bin', 'presentation', 'neuroid')
+    neural_data = average_repetition(neural_data)
+
+    X = neural_data.values
+    # average over time bins
+    X = np.mean(X.reshape(X.shape[0] // bin_size, bin_size, *X.shape[1:]), axis=1)
+
+    conditions = [{"texture_type": texture_type} for texture_type in neural_data["texture_type"].values]
+    # convert to numerical
+    texture_types = np.unique(neural_data["texture_type"].values)
+    conditions = [{
+        "texture_type": np.where(texture_types == texture_type)[0][0]
+    } for texture_type in neural_data["texture_type"].values]
     return X, conditions
