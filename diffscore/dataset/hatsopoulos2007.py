@@ -3,13 +3,16 @@ from pathlib import Path
 import numpy as np
 import scipy.io as spio
 
-# https://datadryad.org/stash/dataset/doi:10.5061/dryad.xsj3tx9cm
-DATA_LINKS = [
-    # use data from one monkey only
-    "https://datadryad.org/stash/downloads/file_stream/397190",
-    # other monkey data (not used)
-    "https://datadryad.org/stash/downloads/file_stream/397193"
-]
+# dryad: https://datadryad.org/stash/dataset/doi:10.5061/dryad.xsj3tx9cm
+
+# original links
+# DATA_LINK = "https://datadryad.org/stash/downloads/file_stream/397190",
+# other monkey data (not used)
+# DATA_LINK = "https://datadryad.org/stash/downloads/file_stream/397193"
+# original data is in mat v7.3 format, which is not supported by scipy.io.loadmat
+# use converted copy instead
+DATA_LINK = "https://www.dropbox.com/scl/fi/u7b6t3wnx7sxowzec28gt/Dataset5_Monkey4_Session1_ReachDataSimultaneousRecording-v7.mat?rlkey=x45tm5poo0jlo6m34jfuf48cs&dl=1"
+
 SAVE_DIR = Path(__file__).parent.resolve() / Path("data/hatsopoulos2007")
 
 
@@ -17,32 +20,19 @@ def download_data(save_dir=None, save_name=None):
     save_dir = save_dir or SAVE_DIR
     save_dir.mkdir(parents=True, exist_ok=True)
 
-    # original data is in mat v7.3 format, which is not supported by scipy.io.loadmat
-    # use converted copy instead (google drive link)
-    # url: https://drive.google.com/file/d/1Ujq5fzfrCKVuZSCf8Dulic5p5ZyERg7X/view?usp=sharing
-
-    # code to download the original data from dryad (not used)
-    # for link in DATA_LINKS:
-    #     if save_name:
-    #         file_name = save_name
-    #     else:
-    #         file_name = link.split("/")[-1]
-    #     file_path = save_dir / file_name
-    #     if not file_path.exists():
-    #         print(f"Downloading {file_name}...")
-    #         import requests
-    #         response = requests.get(link)
-    #         with open(file_path, 'wb') as f:
-    #             f.write(response.content)
-    #     else:
-    #         print(f"{file_name} already exists.")
-    # print("Data downloaded.")
-
-    # download file from google drive
-    import gdown
-    url = 'https://drive.google.com/uc?id=1Ujq5fzfrCKVuZSCf8Dulic5p5ZyERg7X'
-    output = save_dir / save_name
-    gdown.download(url, str(output), quiet=False)
+    if save_name:
+        file_name = save_name
+    else:
+        file_name = DATA_LINK.split("/")[-1]
+    file_path = save_dir / file_name
+    if not file_path.exists():
+        print(f"Downloading {file_name}...")
+        import requests
+        response = requests.get(DATA_LINK)
+        with open(file_path, 'wb') as f:
+            f.write(response.content)
+    else:
+        print(f"{file_name} already exists.")
     print("Data downloaded.")
 
 
