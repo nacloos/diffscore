@@ -39,6 +39,11 @@ jobs:
         # pip install -e .
         # ok if consistent with diffscore dep in similarity-repository
         pip install git+https://github.com/nacloos/diffscore.git
+
+        git clone https://github.com/nacloos/similarity-repository.git
+        cd similarity-repository
+        pip install -e .
+
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
