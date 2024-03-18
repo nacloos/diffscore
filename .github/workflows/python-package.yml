@@ -43,6 +43,7 @@ jobs:
         git clone https://github.com/nacloos/similarity-repository.git
         cd similarity-repository
         pip install -e .
+        cd ..
 
     # - name: Lint with flake8
     #   run: |
@@ -52,4 +53,4 @@ jobs:
     #     flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       run: |
-        pytest
+        pytest tests
