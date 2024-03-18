@@ -9,12 +9,10 @@ datasets = [
     "ultrametric",
     "MajajHong2015",
     "FreemanZiemba2013",
-    "Hatsopoulos2007",
-    "Mante2013"
+    "Hatsopoulos2007"
 ]
-datasets = ["Mante2013"]
 measures = [
-    "procrustes-angular-score",
+    "procrustes-angular-score", 
     "cka"
 ]
 # all the scoring measures
@@ -25,7 +23,6 @@ measures = [
 print(measures)
 
 
-# save score by measure and aggregate everything in another function
 for dataset in datasets:
     pipeline_optim_score(
         dataset=dataset,
