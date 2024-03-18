@@ -69,7 +69,7 @@ def projected_r2(X, Y):
     return dict(res)
 
 
-def pc_captured_variance(X, Ys, scores, n_components=None, plot_over_scores=True, threshold: float | "half" = "half", plot_threshold_lines=False, orth=False, cv=False, cv_kwargs={}, color_log_scale=True, save_dir=None):
+def pc_captured_variance(X, Ys, scores, n_components=None, plot_over_scores=True, threshold: float | str = "half", plot_threshold_lines=False, orth=False, cv=False, cv_kwargs={}, color_log_scale=True, save_dir=None):
     R2s = []
     for Y in Ys:
         res = projected_r2(X, Y)
