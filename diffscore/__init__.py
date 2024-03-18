@@ -4,7 +4,7 @@ from similarity import make, register
 
 
 class Env:
-    def __new__(cls, env_id: str, *args, **kwarg):
+    def __new__(cls, env_id: str, *args, **kwargs):
         return similarity.make(f"env.diffscore.{env_id}", *args, **kwargs)
 
 
