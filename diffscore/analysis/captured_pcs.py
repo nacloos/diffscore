@@ -192,7 +192,7 @@ def pipeline_optim_score(dataset, measure, stop_score, decoder="logistic", label
             # TODO: measure id when measure is not str for save_dir
             res = pipeline_optim_score(dataset, m, stop_score, decoder, save_dir=save_dir / m)
             results.append(res)
-            print(res)
+
         results_df = pd.concat(results)
         print(results_df)
         if save_dir:
@@ -226,8 +226,6 @@ def pipeline_optim_score(dataset, measure, stop_score, decoder="logistic", label
     pc_captured_variance(X, Ys, scores, save_dir=save_dir)
 
     labels = conditions[0].keys() if labels is None else labels
-    print(conditions)
-    print(labels)
 
     decoding_acc_results = {}
     ref_acc_results = {}

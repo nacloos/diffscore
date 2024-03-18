@@ -9,10 +9,12 @@ datasets = [
     "ultrametric",
     "MajajHong2015",
     "FreemanZiemba2013",
-    "Hatsopoulos2007"
+    "Hatsopoulos2007",
+    "Mante2013"
 ]
+datasets = ["Mante2013"]
 measures = [
-    "procrustes-angular-score", 
+    "procrustes-angular-score",
     "cka"
 ]
 # all the scoring measures

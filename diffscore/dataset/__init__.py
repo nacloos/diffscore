@@ -7,8 +7,7 @@ from diffscore import register
 register("dataset.diffscore.toy2d", toy2d)
 register("dataset.diffscore.exp-gaussian", exp_gaussian)
 register("dataset.diffscore.ultrametric", ultrametric)
-# register("dataset.mante13-var99", )
-# register("dataset.siegel15", )
+
 
 @register("dataset.diffscore.Hatsopoulos2007")
 def hatsopoulos2007():
@@ -16,6 +15,30 @@ def hatsopoulos2007():
     # activity during movement period
     data = process_data(condition_average=False, dt=50, align_range=(0, 500), align_event="mvt_onset")
     return data["activity"], data["trial_info"]
+
+
+@register("dataset.diffscore.Mante2013")
+def mante2013():
+    import numpy as np
+    from .mante2013 import process_data
+
+    data = process_data(dt=50)
+
+    # preprocess motion and color coherence values for decoding
+    conditions = data["trial_info"]
+    coh_mod1_values = np.unique([cond["coh_mod1"] for cond in conditions])
+    coh_mod2_values = np.unique([cond["coh_mod2"] for cond in conditions])
+
+    for cond in conditions:
+        # convert to categorical values (replace by index in unique values)
+        # don't use this because low decoding accuracy (around 0.23%)
+        # cond["coh_mod1"] = np.where(cond["coh_mod1"] == coh_mod1_values)[0][0]
+        # cond["coh_mod2"] = np.where(cond["coh_mod2"] == coh_mod2_values)[0][0]
+
+        # convert to binary values (0 if lower than median, 1 if higher)
+        cond["coh_mod1"] = int(np.where(cond["coh_mod1"] < np.median(coh_mod1_values), 0, 1))
+        cond["coh_mod2"] = int(np.where(cond["coh_mod2"] < np.median(coh_mod2_values), 0, 1))
+    return data["activity"], conditions
 
 
 @register("dataset.diffscore.MajajHong2015")
@@ -40,9 +63,6 @@ def majajhong2015():
         } for cat, obj in zip(neural_data["category_name"].values, neural_data["object_name"].values)
     ]
 
-    # TODO: temp for debugging
-    X = X[:300]
-    conditions = conditions[:300]
     return X, conditions
 
 
