@@ -41,7 +41,7 @@ def test_measure_optim():
     measure = Measure("procrustes-angular-score")
 
     X = np.random.rand(5, 10)
-    fit_measure(data=X, measure=measure, stop_crit=0.5)
+    fit_measure(dataset=X, measure=measure, stop_crit=0.5)
 
 
 if __name__ == "__main__":

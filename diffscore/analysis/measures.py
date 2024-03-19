@@ -12,6 +12,11 @@ def reshape2d(X, Y, to_tensor=True):
     if to_tensor:
         X = torch.as_tensor(X)
         Y = torch.as_tensor(Y)
+
+    # convert to same dtype (some measures raise error if dtype is different)
+    X = X.double()
+    Y = Y.double()
+
     if len(X.shape) == 3:
         X = X.reshape(X.shape[0]*X.shape[1], -1)
     if len(Y.shape) == 3:

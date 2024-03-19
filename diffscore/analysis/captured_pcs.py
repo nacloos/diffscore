@@ -220,7 +220,7 @@ def pipeline_optim_score(dataset, measure, stop_score, decoder="logistic", label
         else:
             raise ValueError("Unknown decoder {}".format(decoder))
 
-    res = fit_measure(data=X, measure=measure, stop_crit=stop_score)
+    res = fit_measure(dataset=X, measure=measure, stop_crit=stop_score)
     Ys, scores = res["fitted_datasets"], res["scores"]
 
     pc_captured_variance(X, Ys, scores, save_dir=save_dir)

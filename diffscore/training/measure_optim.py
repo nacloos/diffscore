@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from diffscore import Measure
+from diffscore import Dataset, Measure
 
 
 class MeasureOptim:
@@ -82,13 +82,52 @@ class MeasureOptim:
         return self
 
 
-def fit_measure(data, measure=None, metric_id=None, init_data_fit=None, **kwargs):
+def fit_measure(
+    dataset,
+    measure=None,
+    metric_id=None,
+    init_data_fit=None,
+    optimizer="Adam",
+    lr=1e-1,
+    n_iter=1000,
+    log_steps=10,
+    **kwargs
+):
+    """
+    Optimize similarity measure between datasets.
+
+    Args:
+        dataset: array X or dataset id (str). 
+            X: np.ndarray of shape (n_steps, n_conditions, n_neurons)
+            condition: list[dict] of length n_conditions
+        measure: str or Measure object
+        metric_id: used for backward compatibility
+        init_data_fit: initial data to fit
+        optimizer: optimizer name
+        lr: learning rate
+        n_iter: max number of iterations
+        log_steps: log every n steps
+
+    Returns:
+        dict with keys:
+            reference_dataset: X
+            fitted_data: Y
+            fitted_datasets: list of Ys
+            scores: list of scores
+            score: final score
+            metric_id: measure.id
+    """
+    if isinstance(dataset, str):
+        data, conditions = Dataset(dataset)
+    else:
+        data = dataset
+
     # TODO: metric_id used for backward compatibility
     if measure is None:
         measure = metric_id
     measure = Measure(measure) if isinstance(measure, str) else measure
 
-    optim = MeasureOptim(measure, **kwargs)
+    optim = MeasureOptim(measure, optimizer=optimizer, lr=lr, n_iter=n_iter, log_steps=log_steps, **kwargs)
     optim.fit(data, Y0=init_data_fit)
 
     return {

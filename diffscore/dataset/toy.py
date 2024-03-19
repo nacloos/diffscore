@@ -113,6 +113,8 @@ def ultrametric(dim=50, n_branches=[2, 5, 10], gamma=0.8, n_levels=None, seed=No
         return leaves
 
     X = make_leaves(n_branches, n_levels, gamma)
+    X = X.astype(np.float32)
+
     # cond = np.eye(X.shape[0])
     # cond is the last but one branch (leaves within branch are different repetitions)
     # use np.repeat to repeat n_trials times identity of the last but one branch
