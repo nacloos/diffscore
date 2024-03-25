@@ -12,8 +12,7 @@ class Env:
         elif similarity.is_registered(f"env.{env_id}"):
             return similarity.make(f"env.{env_id}", *args, **kwargs)
         else:
-            print(f"Env {env_id} not found in similarity repository")
-            return None
+            raise ValueError(f"Env {env_id} not found in similarity repository")
 
 
 class Measure:
