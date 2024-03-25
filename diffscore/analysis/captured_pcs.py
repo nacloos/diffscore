@@ -25,7 +25,7 @@ rcparams = {
 }
 
 
-def projected_r2(X, Y):
+def projected_r2(X, Y, orth=False):
     if X.ndim == 3:
         n_steps, n_trials = X.shape[0], X.shape[1]
         X = X.reshape(n_steps * n_trials, X.shape[-1])
@@ -36,11 +36,18 @@ def projected_r2(X, Y):
     # zero padding
     X, Y = check_equal_shapes(X, Y, nd=2, zero_pad=True)
 
-    assert X.shape[0] > X.shape[1]
+    assert X.shape[0] >= X.shape[1]
 
-    # find linear alignment from Y to X (lin reg)
-    Q, R = np.linalg.qr(Y)
-    X_pred = Q @ (Q.T @ X)
+    if not orth:
+        # find linear alignment from Y to X (lin reg)
+        Q, R = np.linalg.qr(Y)
+        X_pred = Q @ (Q.T @ X)
+    else:
+        # find orthogonal alignment from Y to X
+        U, S, Vh = np.linalg.svd(X.T @ Y, full_matrices=False)
+        Q = Vh.T @ U
+        X_pred = Y @ Q
+
     # compute X's PCs
     Ux, Sx, Vhx = np.linalg.svd(X, full_matrices=False)
 
@@ -69,10 +76,21 @@ def projected_r2(X, Y):
     return dict(res)
 
 
-def pc_captured_variance(X, Ys, scores, n_components=None, plot_over_scores=True, threshold: float | str = "half", plot_threshold_lines=False, orth=False, cv=False, cv_kwargs={}, color_log_scale=True, save_dir=None):
+def pc_captured_variance(
+    X,
+    Ys,
+    scores,
+    n_components=None,
+    threshold: float | str = "half",
+    plot_threshold_lines=False,
+    color_log_scale=True,
+    expl_var_ratio=False,
+    orth=False,
+    save_dir=None
+):
     R2s = []
     for Y in Ys:
-        res = projected_r2(X, Y)
+        res = projected_r2(X, Y, orth=orth)
         R2s.append(res["R2_pc"])
 
     R2s = np.array(R2s)
@@ -87,7 +105,6 @@ def pc_captured_variance(X, Ys, scores, n_components=None, plot_over_scores=True
         if threshold == "half":
             # threshold is the score at which R2 is mid-way between its starting value and 1µ
             _threshold = (R2s[0, i] + 1) / 2
-            # print("PC", i, "threshold:", _threshold)
         else:
             _threshold = threshold
 
@@ -109,6 +126,7 @@ def pc_captured_variance(X, Ys, scores, n_components=None, plot_over_scores=True
         ax.spines["right"].set_visible(False)
         plt.tight_layout()
         if save_dir is not None:
+            save_dir.mkdir(parents=True, exist_ok=True)
             plt.savefig(save_dir / "scores_at_threshold.png")
 
         pca = PCA(n_components=None)
@@ -116,7 +134,11 @@ def pc_captured_variance(X, Ys, scores, n_components=None, plot_over_scores=True
             pca.fit(X.reshape(X.shape[0] * X.shape[1], -1))
         else:
             pca.fit(X)
-        expl_var = pca.explained_variance_[:n_components]
+
+        if expl_var_ratio:
+            expl_var = pca.explained_variance_ratio_[:n_components]
+        else:
+            expl_var = pca.explained_variance_[:n_components]
         plt.figure(figsize=(3, 2), dpi=130)
         plt.semilogx(expl_var, scores_at_threshold, color="tab:blue")
         plt.xlabel("PC explained variance")
@@ -128,29 +150,22 @@ def pc_captured_variance(X, Ys, scores, n_components=None, plot_over_scores=True
         if save_dir is not None:
             plt.savefig(save_dir / "scores_at_threshold_vs_expl_var.png")
 
-        plt.figure(figsize=(3, 2), dpi=130)
-
         if color_log_scale:
             log_expl_var = np.log(expl_var)
             # normalize between 0 and 1
             log_expl_var = (log_expl_var - log_expl_var.min()) / (log_expl_var.max() - log_expl_var.min())
-            colormap = plt.cm.get_cmap("plasma")
+            colormap = plt.colormaps["plasma"]
             colors = [colormap(log_expl_var[i]) for i in range(n_components)]
         else:
             colors = plt.cm.plasma(np.flip(np.linspace(0, 1, n_components)))
 
+        plt.figure(figsize=(3, 2), dpi=130)
         for i in reversed(range(n_components)):
             color = colors[i]
-
-            if plot_over_scores:
-                plt.plot(scores, R2s[:, i], color=color)
-            else:
-                plt.plot(R2s[:, i], color=color)
-
+            plt.plot(scores, R2s[:, i], color=color)
             if plot_threshold_lines:
                 plt.axvline(x=scores_at_threshold[i], color=color, linestyle='--')
-
-        plt.xlabel("Score") if plot_over_scores else plt.xlabel("Iteration")
+        plt.xlabel("Score")
         plt.ylabel("PC R2")
         ax = plt.gca()
         ax.spines["top"].set_visible(False)
@@ -158,6 +173,23 @@ def pc_captured_variance(X, Ys, scores, n_components=None, plot_over_scores=True
         plt.tight_layout()
         if save_dir is not None:
             plt.savefig(save_dir / "R2_vs_score.png")
+
+
+        plt.figure(figsize=(3, 2), dpi=130)
+        for i in reversed(range(n_components)):
+            color = colors[i]
+            plt.plot(R2s[:, i], color=color)
+            if plot_threshold_lines:
+                plt.axvline(x=scores_at_threshold[i], color=color, linestyle='--')
+        plt.xlabel("Iteration")
+        plt.ylabel("PC R2")
+        ax = plt.gca()
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        plt.tight_layout()
+        if save_dir is not None:
+            plt.savefig(save_dir / "R2_vs_iteration.png")
+
 
         plt.figure()
         plt.plot(scores)
@@ -168,12 +200,13 @@ def pc_captured_variance(X, Ys, scores, n_components=None, plot_over_scores=True
             plt.savefig(save_dir / "score.png")
 
     return {
-        "scores_at_threshold": scores_at_threshold,
-        "R2_pc": R2s
+        "scores_at_threshold": np.array(scores_at_threshold),
+        "pc_captured_variance": R2s,
+        "pc_explained_variance": expl_var
     }
 
 
-def pipeline_optim_score(dataset, measure, stop_score, decoder="logistic", labels=None, save_dir=None):
+def pipeline_optim_score(dataset, measure, stop_score, decoder="logistic", labels=None, decoding_analysis=True, save_dir=None, **kwargs):
     """
     Args:
         dataset: tuple (X, condition) or dataset id (str). 
@@ -187,18 +220,26 @@ def pipeline_optim_score(dataset, measure, stop_score, decoder="logistic", label
         print("Saving to", save_dir)
 
     if isinstance(measure, (list, tuple)):
-        results = []
+        # store results for each measure
+        pc_results = []
+        decoding_results = []
         for m in measure:
             # TODO: measure id when measure is not str for save_dir
-            res = pipeline_optim_score(dataset, m, stop_score, decoder, save_dir=save_dir / m)
-            results.append(res)
+            fit_res, pc_res, decoding_res = pipeline_optim_score(dataset, m, stop_score, decoder, save_dir=save_dir / m, **kwargs)
+            # results for scores to reach R2 threshold
+            pc_results.append(pc_res)
+            # results for decoding accuracy
+            decoding_results.append(decoding_res)
 
-        results_df = pd.concat(results)
-        print(results_df)
+        pc_results_df = pd.concat(pc_results)
+        decoding_results_df = pd.concat(decoding_results)
+        print(decoding_results_df)
         if save_dir:
-            save_name = dataset if isinstance(dataset, str) else "score_vs_decoding_acc"
-            results_df.to_csv(save_dir / f"{save_name}.csv")
-        return
+            # save_name = dataset if isinstance(dataset, str) else "score_vs_decoding_acc"
+            decoding_results_df.to_csv(save_dir / "scores_vs_decoding_acc.csv")
+            pc_results_df.to_csv(save_dir / "scores_at_threshold.csv")
+
+        return pc_results_df, decoding_results_df
 
     if isinstance(dataset, str):
         dataset_id = dataset
@@ -220,10 +261,27 @@ def pipeline_optim_score(dataset, measure, stop_score, decoder="logistic", label
         else:
             raise ValueError("Unknown decoder {}".format(decoder))
 
-    res = fit_measure(dataset=X, measure=measure, stop_crit=stop_score)
-    Ys, scores = res["fitted_datasets"], res["scores"]
+    fit_res = fit_measure(dataset=X, measure=measure, stop_crit=stop_score, **kwargs)
+    Ys, scores = fit_res["fitted_datasets"], fit_res["scores"]
 
-    pc_captured_variance(X, Ys, scores, save_dir=save_dir)
+    # TODO: give very low R2
+    pc_res = pc_captured_variance(
+        X, Ys, scores, expl_var_ratio=True, 
+        orth=True, save_dir=save_dir / "orth" if save_dir else None
+    )
+
+    pc_res = pc_captured_variance(X, Ys, scores, expl_var_ratio=True, save_dir=save_dir)
+    pc_res_df = pd.DataFrame({
+        "scores_at_threshold": pc_res["scores_at_threshold"],
+        "pc_explained_variance": pc_res["pc_explained_variance"],
+        "measure": [measure_id] * len(pc_res["scores_at_threshold"]),
+        "dataset": [dataset_id] * len(pc_res["scores_at_threshold"]),
+    })
+    if save_dir:
+        pc_res_df.to_csv(save_dir / "scores_at_threshold.csv")
+
+    if not decoding_analysis:
+        return fit_res, pc_res_df
 
     labels = conditions[0].keys() if labels is None else labels
 
@@ -267,13 +325,13 @@ def pipeline_optim_score(dataset, measure, stop_score, decoder="logistic", label
     # average across labels
     avg_decoding_acc = np.mean(list(normalized_decoding_acc.values()), axis=0)
 
-    res_df = pd.DataFrame({
+    decoding_res_df = pd.DataFrame({
         "score": scores,
         "decoding_accuracy": avg_decoding_acc,
         "measure": [measure_id] * len(scores),
         "dataset": [dataset_id] * len(scores),
     })
     if save_dir:
-        res_df.to_csv(save_dir / "score_vs_decoding_acc.csv")
+        decoding_res_df.to_csv(save_dir / "score_vs_decoding_acc.csv")
 
-    return res_df
+    return fit_res, pc_res_df, decoding_res_df

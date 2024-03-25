@@ -131,9 +131,7 @@ def ultrametric(dim=50, n_branches=[2, 5, 10], gamma=0.8, n_levels=None, seed=No
 
 
 def test_ultrametric():
-    X, cond = ultrametric(dim=200, n_branches=[2, 2, 2, 30], gamma=0.8)
-    print(X.shape)
-    print(cond.shape)
+    X, cond = ultrametric(dim=1000, n_branches=[2, 2, 3, 10], gamma=0.8)
 
     # mds
     from sklearn.manifold import MDS

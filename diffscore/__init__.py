@@ -5,7 +5,15 @@ from similarity import make, register
 
 class Env:
     def __new__(cls, env_id: str, *args, **kwargs):
-        return similarity.make(f"env.diffscore.{env_id}", *args, **kwargs)
+        # TODO: what if want to use env that is not in diffscore?
+        # TODO: temp solution
+        if similarity.is_registered(f"env.diffscore.{env_id}"):
+            return similarity.make(f"env.diffscore.{env_id}", *args, **kwargs)
+        elif similarity.is_registered(f"env.{env_id}"):
+            return similarity.make(f"env.{env_id}", *args, **kwargs)
+        else:
+            print(f"Env {env_id} not found in similarity repository")
+            return None
 
 
 class Measure:
