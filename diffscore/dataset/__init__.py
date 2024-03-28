@@ -4,12 +4,12 @@ from .toy import exp_gaussian, ultrametric, toy2d
 from diffscore import register
 
 
-register("dataset.diffscore.toy2d", toy2d)
-register("dataset.diffscore.exp-gaussian", exp_gaussian)
-register("dataset.diffscore.ultrametric", ultrametric)
+register("dataset.toy2d", toy2d)
+register("dataset.exp-gaussian", exp_gaussian)
+register("dataset.ultrametric", ultrametric)
 
 
-@register("dataset.diffscore.Hatsopoulos2007")
+@register("dataset.Hatsopoulos2007")
 def hatsopoulos2007():
     from .hatsopoulos2007 import process_data
     # activity during movement period
@@ -17,12 +17,16 @@ def hatsopoulos2007():
     return data["activity"], data["trial_info"]
 
 
-@register("dataset.diffscore.Mante2013")
-def mante2013():
+@register("dataset.Mante2013")
+def mante2013(for_decoding=True):
     import numpy as np
     from .mante2013 import process_data
 
     data = process_data(dt=50)
+
+    # TODO: temp
+    if not for_decoding:
+        return data
 
     # preprocess motion and color coherence values for decoding
     conditions = data["trial_info"]
@@ -41,7 +45,7 @@ def mante2013():
     return data["activity"], conditions
 
 
-@register("dataset.diffscore.MajajHong2015")
+@register("dataset.MajajHong2015")
 def majajhong2015():
     import numpy as np
     import brainscore_vision
@@ -66,7 +70,7 @@ def majajhong2015():
     return X, conditions
 
 
-@register("dataset.diffscore.FreemanZiemba2013")
+@register("dataset.FreemanZiemba2013")
 def freemanziemba2013(bin_size=150):
     import numpy as np
     import brainscore_vision

@@ -55,8 +55,9 @@ def record_ngym_lit(
         dict:
             x: Model inputs
             y: Model targets
-            model_output: Model predictions
-            model_activity: Model activity
+            output: Model predictions
+            activity: Model activity
+            conditions: Conditions used to generate the model inputs and targets
     """
     if x is not None:
         assert y is not None, "Must provide y if x is provided"
@@ -92,6 +93,10 @@ def record_ngym_lit(
     return {
         "x": x,
         "y": y,
+        "output": pred,
+        "activity": model_act,
+        "conditions": conditions,
+        # backward compatibility
         "model_output": pred,
         "model_activity": model_act,
     }

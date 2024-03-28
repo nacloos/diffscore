@@ -160,7 +160,8 @@ def process_data(subject: str = "ar", data_dir: str | Path = None, dt: int = 50)
     return {
         "dt": dt,
         "activity": activity,
-        "trial_info": trials_info,
+        "trial_info": trials_info,  # backward compatibility
+        "conditions": trials_info,
         "trial_timing": [mante_timing]*len(trials_info),
         "region": regions,
         "target": [trial_info['gt_choice'] for trial_info in trials_info]

@@ -1,2 +1,2 @@
-from .rnn import CTRNN, LowPassCTRNN, LSTM, RNN
-from .wrappers import IterateInput
+# alias for diffscore.nn (backward compatibility)
+from diffscore.nn import *

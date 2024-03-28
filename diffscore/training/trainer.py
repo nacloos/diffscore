@@ -49,8 +49,8 @@ class NGymLitTrainer:
             save_every_n_train_steps=None,
             state_norm_reg=None,
             max_reward=False,
-            online_dataset=False,
-            num_workers=2,
+            online_dataset=True,
+            num_workers=0,
             **kwargs
         ):
         # raises a rather noninformative error if not an int
@@ -481,8 +481,8 @@ class InitialModelCheckpoint(pl.Callback):
 
 
 def test_train():
-    from multisys.model import CTRNN
-    from multisys.model.wrappers import IterateInput
+    from diffscore.nn import CTRNN
+    from diffscore.nn.wrappers import IterateInput
 
     class DummyDataset(torch.utils.data.Dataset):
         def __init__(self, seq_len, n_samples, ob_size, tgt_size):

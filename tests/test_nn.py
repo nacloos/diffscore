@@ -1,7 +1,7 @@
 from functools import partial
 import torch
 
-from diffscore.model import CTRNN, LSTM, LowPassCTRNN, IterateInput
+from diffscore.nn import CTRNN, LSTM, LowPassCTRNN, IterateInput
 
 
 def test_rnn():

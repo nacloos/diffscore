@@ -160,5 +160,5 @@ cython_debug/
 .idea/
 
 
-examples/results
-*/dataset/data
+diffscore/dataset/data
+**/lightning_logs

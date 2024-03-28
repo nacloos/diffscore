@@ -5,7 +5,7 @@ from sklearn.model_selection import KFold
 import torch
 
 import similarity
-from similarity import register, make
+from diffscore import register, make
 
 
 def reshape2d(X, Y, to_tensor=True):
@@ -237,7 +237,7 @@ def cka_svd(XX, YY):
     return torch.sum(torch.outer(lambX, lambY) * uX_uY * uX_uY) / (lambX_norm*lambY_norm)
 
 
-@register("measure.pytorch-cka-angular")
+@register("measure.cka-angular")
 def cka_angular():
     cka = CKA(arccos=True)
     def _fit_score(X, Y):
@@ -247,19 +247,19 @@ def cka_angular():
     return _fit_score
 
 
-@register("measure.pytorch-cka-angular-score")
+@register("measure.cka-angular-score")
 def _():
-    cka = make("measure.pytorch-cka-angular")
+    cka = make("measure.cka-angular")
     def _fit_score(X, Y):
         return 1 - cka(X, Y) / (np.pi/2)
     return _fit_score
 
 
 # TODO: correlation-corr correct?
-register("measure.pytorch-rsa-correlation-corr", partial(RSA, arccos=False))
+register("measure.rsa-correlation-corr", partial(RSA, arccos=False))
 
 
-@register("measure.pytorch-procrustes-angular")
+@register("measure.procrustes-angular")
 def procrustes_angular():
     cca = RegCCA(alpha=1)
     def _fit_score(X, Y):
@@ -269,21 +269,21 @@ def procrustes_angular():
     return _fit_score
 
 
-@register("measure.pytorch-procrustes-angular-score")
+@register("measure.procrustes-angular-score")
 def _():
-    proc = make("measure.pytorch-procrustes-angular")
+    proc = make("measure.procrustes-angular")
     def _fit_score(X, Y):
         return 1 - proc(X, Y) / (np.pi/2)
     return _fit_score
 
 
-@register("measure.pytorch-procrustes-angular-cv")
+@register("measure.procrustes-angular-cv")
 def procrustes_angular_cv(n_splits=5, fit_ratio=0.8):
     cca = RegCCA(alpha=1)
     def _fit_score(X, Y):
         # cca.fit(X, Y)
         # score1 = cca.score(X, Y)
-        # score2 = make("measure.pytorch-procrustes-angular")(X, Y)
+        # score2 = make("measure.procrustes-angular")(X, Y)
         # assert torch.allclose(score1, score2), f"{score1} != {score2}"
         # print("Check passed")
 
@@ -316,15 +316,15 @@ def procrustes_angular_cv(n_splits=5, fit_ratio=0.8):
     return _fit_score
 
 
-@register("measure.pytorch-procrustes-angular-cv-score")
+@register("measure.procrustes-angular-cv-score")
 def _():
-    proc = make("measure.pytorch-procrustes-angular-cv")
+    proc = make("measure.procrustes-angular-cv")
     def _fit_score(X, Y):
         return 1 - proc(X, Y) / (np.pi/2)
     return _fit_score
 
 
-@register("measure.pytorch-procrustes-euclidean")
+@register("measure.procrustes-euclidean")
 def _():
     cca = RegCCA(alpha=1, scoring_method="euclidean")
     def _fit_score(X, Y):
@@ -334,7 +334,7 @@ def _():
     return _fit_score
 
 
-@register("measure.pytorch-cca-angular")
+@register("measure.cca-angular")
 def cca_angular():
     cca = RegCCA(alpha=0)
     def _fit_score(X, Y):
@@ -344,18 +344,18 @@ def cca_angular():
     return _fit_score
 
 
-@register("measure.pytorch-cca-angular-score")
+@register("measure.cca-angular-score")
 def _():
-    cca = make("measure.pytorch-cca-angular")
+    cca = make("measure.cca-angular")
     def _fit_score(X, Y):
         return 1 - cca(X, Y) / (np.pi/2)
     return _fit_score
 
 
-# @register("measure.pytorch-svcca-angular")
+# @register("measure.svcca-angular")
 # TODO: match dim wth pca instead of zero padding?
 
-@register("measure.pytorch-linreg")
+@register("measure.linreg")
 def linreg(arccos=False, zero_pad=True):
     # X: neural data, Y: model data
     # ref: https://arxiv.org/pdf/1905.00414.pdf
@@ -381,10 +381,10 @@ def linreg(arccos=False, zero_pad=True):
     return _fit_score
 
 
-register("measure.pytorch-linreg-angular", partial(linreg, arccos=True))
+register("measure.linreg-angular", partial(linreg, arccos=True))
 
 
-@register("measure.pytorch-linreg-cv")
+@register("measure.linreg-cv")
 def linreg_cv(arccos=False, zero_pad=True, n_splits=5, fit_ratio=0.8):
     class LinRegScore:
         def __init__(self, arccos=False, zero_pad=True):
@@ -427,7 +427,7 @@ def linreg_cv(arccos=False, zero_pad=True, n_splits=5, fit_ratio=0.8):
     def _fit_score(X, Y):
         # linreg.fit(X, Y)
         # score1 = linreg.score(X, Y)
-        # score2 = make("measure.pytorch-linreg", arccos=arccos)(X, Y)
+        # score2 = make("measure.linreg", arccos=arccos)(X, Y)
         # assert torch.allclose(score1, score2), f"{score1} != {score2}"
         # print("Check passed")
 
@@ -457,10 +457,10 @@ def linreg_cv(arccos=False, zero_pad=True, n_splits=5, fit_ratio=0.8):
     return _fit_score
 
 
-register("measure.pytorch-linreg-angular-cv", partial(linreg_cv, arccos=True))
+register("measure.linreg-angular-cv", partial(linreg_cv, arccos=True))
 
 
-@register("measure.diffscore.linreg-r2#5folds_cv")
+@register("measure.linreg-r2#5folds_cv")
 def measure_linreg(zero_pad=True, alpha=0, n_splits=5):
     class LinRegScore:
         def fit(self, X, Y):
@@ -522,31 +522,31 @@ def measure_linreg(zero_pad=True, alpha=0, n_splits=5):
 
 
 register(
-    "measure.diffscore.linreg-r2#no_cv",
+    "measure.linreg-r2#no_cv",
     partial(measure_linreg, n_splits=None)
 )
 register(
-    "measure.diffscore.ridge-lambda1-r2#5folds_cv",
+    "measure.ridge-lambda1-r2#5folds_cv",
     partial(measure_linreg, alpha=1)
 )
 register(
-    "measure.diffscore.ridge-lambda10-r2#5folds_cv",
+    "measure.ridge-lambda10-r2#5folds_cv",
     partial(measure_linreg, alpha=10)
 )
 register(
-    "measure.diffscore.ridge-lambda100-r2#5folds_cv",
+    "measure.ridge-lambda100-r2#5folds_cv",
     partial(measure_linreg, alpha=100)
 )
 register(
-    "measure.diffscore.ridge-lambda1-r2#no_cv",
+    "measure.ridge-lambda1-r2#no_cv",
     partial(measure_linreg, alpha=1, n_splits=None)
 )
 register(
-    "measure.diffscore.ridge-lambda10-r2#no_cv",
+    "measure.ridge-lambda10-r2#no_cv",
     partial(measure_linreg, alpha=10, n_splits=None)
 )
 register(
-    "measure.diffscore.ridge-lambda100-r2#no_cv",
+    "measure.ridge-lambda100-r2#no_cv",
     partial(measure_linreg, alpha=100, n_splits=None)
 )
 
@@ -579,13 +579,13 @@ def kfold_crossval(measure, n_splits=5):
     return _fit_score
 
 
-@register("measure.diffscore.procrustes-angular#5folds_cv")
+@register("measure.procrustes-angular#5folds_cv")
 def _():
     measure = RegCCA(alpha=1)
     return kfold_crossval(measure=measure, n_splits=5)
 
 
-@register("measure.diffscore.procrustes-angular-score#5folds_cv")
+@register("measure.procrustes-angular-score#5folds_cv")
 def _():
     measure = RegCCA(alpha=1, scoring_method="euclidean")
     def _fit_score(X, Y):
@@ -593,7 +593,7 @@ def _():
     return _fit_score
 
 
-@register("measure.diffscore.procrustes-euclidean-score")
+@register("measure.procrustes-euclidean-score")
 def _():
     measure = RegCCA(alpha=1)
     def _fit_score(X, Y):
@@ -605,7 +605,7 @@ def test_pytorch_metric(dataset, metric_id):
     data = dataset.get_activity()
     cond_avg = data.mean(axis=1, keepdims=True).repeat(data.shape[1], axis=1)
 
-    metric = make(f"measure.pytorch-{metric_id}")
+    metric = make(f"measure.{metric_id}")
     metric2 = similarity.make(f"measure.{metric_id}")
 
     score = metric(data, cond_avg)
@@ -614,7 +614,7 @@ def test_pytorch_metric(dataset, metric_id):
     print("Test passed for", metric_id)
 
 
-@register("measure.pytorch-nbs-squared")
+@register("measure.nbs-squared")
 def _():
     def _fit_score(X, Y):
         X, Y = reshape2d(X, Y)
@@ -631,24 +631,24 @@ def _():
     return _fit_score
 
 
-@register("measure.pytorch-nbs")
+@register("measure.nbs")
 def _():
-    nbs_square = make("measure.pytorch-nbs-squared")
+    nbs_square = make("measure.nbs-squared")
     def _fit_score(X, Y):
         return torch.sqrt(nbs_square(X, Y))
     return _fit_score
 
-@register("measure.pytorch-nbs-angular")
+@register("measure.nbs-angular")
 def _():
-    nbs = make("measure.pytorch-nbs")
+    nbs = make("measure.nbs")
     def _fit_score(X, Y):
         return torch.acos(nbs(X, Y))
     return _fit_score
 
 
-@register("measure.pytorch-nbs-angular-score")
+@register("measure.nbs-angular-score")
 def _():
-    nbs = make("measure.pytorch-nbs-angular")
+    nbs = make("measure.nbs-angular")
     def _fit_score(X, Y):
         return 1 - nbs(X, Y) / (np.pi/2)
     return _fit_score
@@ -656,7 +656,7 @@ def _():
 # TODO: what about nbs-squared-angular? (don't think it is a metric like nbs-angular = procrustes-angular metric)
 
 
-@register("measure.pytorch-cka")
+@register("measure.cka")
 def _():
     def _fit_score(X, Y):
         X, Y = reshape2d(X, Y)
@@ -673,7 +673,7 @@ def _():
     return _fit_score
 
 
-@register("measure.diffscore.ensd")
+@register("measure.ensd")
 def _():
     def _fit_score(X, Y):
         X, Y = reshape2d(X, Y)
@@ -691,26 +691,26 @@ def _():
         return score
     return _fit_score
 
-measure_ids = make(id="measure.pytorch-*").keys()
-for measure_id in measure_ids:
-    register(
-        f"measure.diffscore.{measure_id.split('pytorch-')[1]}",
-        partial(make, measure_id)
-    )
+# measure_ids = make(id="measure.*").keys()
+# for measure_id in measure_ids:
+#     register(
+#         f"measure.{measure_id.split('pytorch-')[1]}",
+#         partial(make, measure_id)
+#     )
 
 
 # def test_pytorch_measures():
 #     for i in range(10):
 #         X = np.random.randn(15, 72, 100)
 #         Y = np.random.randn(15, 72, 100)
-#         pytorch_cka = make("measure.pytorch-cka")
+#         pytorch_cka = make("measure.cka")
 #         cka = similarity.make("measure.cka")
 
 #         score = pytorch_cka(X, Y).numpy()
 #         score2 = cka.fit_score(X, Y)
 #         assert np.allclose(score, score2)
 
-#         pytorch_nbs = make("measure.pytorch-nbs-squared")
+#         pytorch_nbs = make("measure.nbs-squared")
 #         procrustes = similarity.make("measure.procrustes-angular")
 
 #         score = pytorch_nbs(X, Y).numpy()
@@ -720,15 +720,15 @@ for measure_id in measure_ids:
 
 
 # def test_diffscore_measures():
-#     measure_ids = make(id="measure.pytorch-*").keys()
+#     measure_ids = make(id="measure.*").keys()
 
 #     for measure_id in measure_ids:
 #         print("Testing", measure_id)
-#         print("diffscore id:", f"measure.diffscore.{measure_id.split('pytorch-')[1]}")
+#         print("diffscore id:", f"measure.{measure_id.split('pytorch-')[1]}")
 #         X = np.random.randn(15, 72, 100)
 #         Y = np.random.randn(15, 72, 100)
 
-#         measure = similarity.make(f"measure.diffscore.{measure_id.split('pytorch-')[1]}")
+#         measure = similarity.make(f"measure.{measure_id.split('pytorch-')[1]}")
 #         pytorch_measure = make(measure_id)
 #         score = measure(X, Y)
 #         score2 = pytorch_measure(X, Y).numpy()
