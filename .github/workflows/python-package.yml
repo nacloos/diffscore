@@ -32,25 +32,14 @@ jobs:
         pip install setuptools==65.5.0 pip==21  
         pip install wheel==0.38.0   
 
-        pip install flake8 pytest
         # TODO: raises an error: The conflict is caused by:
         # The user requested diffscore 0.0.1 (from /home/runner/work/diffscore/diffscore)
         # similarity-repository 0.0.1 depends on diffscore 0.0.1 (from git+https://github.com/nacloos/diffscore.git)
         # pip install -e .
         # ok if consistent with diffscore dep in similarity-repository
+        # for now, removed diffscore from similarity-repository requirements
         pip install git+https://github.com/nacloos/diffscore.git
 
-        git clone https://github.com/nacloos/similarity-repository.git
-        cd similarity-repository
-        pip install -e .
-        cd ..
-
-    # - name: Lint with flake8
-    #   run: |
-    #     # stop the build if there are Python syntax errors or undefined names
-    #     flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-    #     # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-    #     flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       run: |
         pytest tests
