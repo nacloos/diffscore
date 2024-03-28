@@ -9,7 +9,7 @@ setup(
     install_requires=[
         'pytorch_lightning',
         'neurogym',
-        'brainscore_vision @ git+https://github.com/brain-score/vision'
+        'brainscore_vision @ git+https://github.com/brain-score/vision',
         'similarity-repository @ git+https://github.com/nacloos/similarity-repository.git'
     ],
     description='',
