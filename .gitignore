@@ -162,3 +162,4 @@ cython_debug/
 
 diffscore/dataset/data
 **/lightning_logs
+examples/explore-datasets.ipynb

@@ -4,7 +4,7 @@ from diffscore.nn import CTRNN, IterateInput
 
 
 def test_trainer():
-    env = Env("mante13")
+    env = Env("mante")
     model = CTRNN(
         input_size=env.observation_space.shape[0],
         hidden_size=100,

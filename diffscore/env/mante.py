@@ -251,8 +251,8 @@ class CtxdmEnv(_DMFamily):
         return ob, reward, done, {'new_trial': new_trial, 'gt': gt, 'trial_info': self.trial}
 
 
-@register("env.mante13")
-def env_mante13():
+@register("env.mante")
+def env_mante():
     dt = 50
     env = CtxdmEnv(
         dt=dt,
@@ -269,8 +269,8 @@ def env_mante13():
     return env
 
 
-@register("env.mante13-test")
-def env_mante13_test():
+@register("env.mante-test")
+def env_mante_test():
     dt = 50
     env = CtxdmEnv(
         dt=dt,
