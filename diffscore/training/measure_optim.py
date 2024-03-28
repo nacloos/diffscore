@@ -122,7 +122,7 @@ def fit_measure(
     else:
         data = dataset
 
-    # TODO: metric_id used for backward compatibility
+    # metric_id for backward compatibility
     if measure is None:
         measure = metric_id
     measure = Measure(measure) if isinstance(measure, str) else measure
@@ -136,5 +136,4 @@ def fit_measure(
         "fitted_datasets": [Y.detach().numpy() for Y in optim.Ys],
         "scores": optim.scores,
         "score": optim.scores[-1],
-        # "metric_id": measure.id
     }

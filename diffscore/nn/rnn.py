@@ -7,7 +7,6 @@ from .weight_init import init_param
 from .activation_fn import get_activation_fn
 
 
-# TODO: really need base class?
 class BaseRNN(nn.Module):
     def __init__(self, input_size, hidden_size, output_size, noise_std=None):
         super().__init__()

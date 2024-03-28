@@ -5,10 +5,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch import optim
-from torch.nn import MSELoss
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
+from pytorch_lightning.callbacks import ModelCheckpoint
 
 import neurogym as ngym
 
@@ -36,23 +35,23 @@ class NGymLitTrainer:
 
     """
     def __init__(
-            self,
-            loss_fn: str = "MSELoss",
-            optimizer=optim.Adam,
-            accuracy=None,
-            batch_first: bool = False,
-            batch_size: int = 64,
-            n_samples: int = int(10e3),
-            target_as_input=False,
-            loss_model_arg=False,
-            checkpoint_path=None,
-            save_every_n_train_steps=None,
-            state_norm_reg=None,
-            max_reward=False,
-            online_dataset=True,
-            num_workers=0,
-            **kwargs
-        ):
+        self,
+        loss_fn: str = "MSELoss",
+        optimizer=optim.Adam,
+        accuracy=None,
+        batch_first: bool = False,
+        batch_size: int = 64,
+        n_samples: int = int(10e3),
+        target_as_input=False,
+        loss_model_arg=False,
+        checkpoint_path=None,
+        save_every_n_train_steps=None,
+        state_norm_reg=None,
+        max_reward=False,
+        online_dataset=True,
+        num_workers=0,
+        **kwargs
+    ):
         # raises a rather noninformative error if not an int
         assert isinstance(n_samples, int)
         assert isinstance(batch_size, int)
@@ -130,12 +129,6 @@ class NGymLitTrainer:
         return lit_module
 
     def _make_dataloader(self, env):
-        # make new env object in dataset to prevent issue where can't pickle local object
-        # if self.num_workers > 0:
-        #     # assert id is the only key (don't support kwargs)
-        #     assert len(config(env)) == 1 and "id" in config(env), "Only support env id in config when using num_workers > 0"
-        #     env = config(env)["id"]
-
         if self.online_dataset:
             dataset = NGymOnlineDataset(env, n_samples=self.n_samples)
         else:
@@ -246,7 +239,7 @@ class NGymLitTrainer:
             y = torch.from_numpy(y).type(torch.float)
         x, y = x.float(), y.float()
 
-        # TODO: put that in LITModule? because need this to compute accuracy
+        # TODO: move that in LITModule? because need this to compute accuracy
         # TODO: use lit module predict (otherwise error that model is on gpu and data on cpu)
         model.to('cpu')
         # if self.target_as_input:
@@ -478,36 +471,3 @@ class InitialModelCheckpoint(pl.Callback):
 
     def on_train_start(self, trainer, pl_module):
         trainer.save_checkpoint(self.checkpoint_path)
-
-
-def test_train():
-    from diffscore.nn import CTRNN
-    from diffscore.nn.wrappers import IterateInput
-
-    class DummyDataset(torch.utils.data.Dataset):
-        def __init__(self, seq_len, n_samples, ob_size, tgt_size):
-            super().__init__()
-            self.n_samples = n_samples
-            self.seq_len = seq_len
-
-            self.x = torch.ones((seq_len, self.n_samples, ob_size))
-            self.y = torch.ones((seq_len, self.n_samples, tgt_size))
-
-        def __len__(self):
-            return self.n_samples
-
-        def __getitem__(self, idx):
-            return self.x[:, idx], self.y[:, idx]
-
-    dataset = DummyDataset(50, 1000, 5, 3)
-    dataloader = DataLoader(dataset=dataset, batch_size=64)
-
-    module = IterateInput(CTRNN(5, 100, 3, 100, 50))
-    lit_module = LitModule(module, loss_fn=MSELoss(), optimizer=optim.Adam, accuracy=None)
-    trainer = pl.Trainer()
-
-    trainer.fit(lit_module, train_dataloaders=dataloader)
-
-
-if __name__ == "__main__":
-    test_train()
