@@ -32,6 +32,8 @@ jobs:
         pip install setuptools==65.5.0 pip==21  
         pip install wheel==0.38.0   
 
+        python -m pip install pytest
+
         # TODO: raises an error: The conflict is caused by:
         # The user requested diffscore 0.0.1 (from /home/runner/work/diffscore/diffscore)
         # similarity-repository 0.0.1 depends on diffscore 0.0.1 (from git+https://github.com/nacloos/diffscore.git)
