@@ -264,10 +264,10 @@ def pipeline_optim_score(dataset, measure, stop_score, decoder="logistic", label
     Ys, scores = fit_res["fitted_datasets"], fit_res["scores"]
 
     # TODO: give very low R2
-    pc_res = pc_captured_variance(
-        X, Ys, scores, expl_var_ratio=True, 
-        orth=True, save_dir=save_dir / "orth" if save_dir else None
-    )
+    # pc_res = pc_captured_variance(
+    #     X, Ys, scores, expl_var_ratio=True, 
+    #     orth=True, save_dir=save_dir / "orth" if save_dir else None
+    # )
 
     pc_res = pc_captured_variance(X, Ys, scores, expl_var_ratio=True, save_dir=save_dir)
     pc_res_df = pd.DataFrame({

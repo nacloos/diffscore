@@ -127,6 +127,10 @@ def fit_measure(
         measure = metric_id
     measure = Measure(measure) if isinstance(measure, str) else measure
 
+    if init_data_fit is not None:
+        # prevent inplace modification
+        init_data_fit = init_data_fit.copy()
+
     optim = MeasureOptim(measure, optimizer=optimizer, lr=lr, n_iter=n_iter, log_steps=log_steps, **kwargs)
     optim.fit(data, Y0=init_data_fit)
 
