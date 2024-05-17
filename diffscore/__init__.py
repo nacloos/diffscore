@@ -61,3 +61,6 @@ from diffscore import dataset
 from diffscore import env
 # have to import training after env because use env in training
 from diffscore import training
+
+from diffscore.training import fit_measure, optimize, OptimResult
+from diffscore.analysis import pipeline_optim_score

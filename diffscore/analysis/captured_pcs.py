@@ -1,5 +1,6 @@
 from __future__ import annotations
 from pathlib import Path
+from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
@@ -13,7 +14,7 @@ from netrep.validation import check_equal_shapes
 from diffscore import Dataset
 from diffscore import Measure
 from diffscore.analysis.decoding import decoder_logistic
-from diffscore.training.measure_optim import fit_measure
+from diffscore.training.measure_optim import fit_measure, OptimResult
 
 
 rcparams = {
@@ -205,7 +206,7 @@ def pc_captured_variance(
     }
 
 
-def pipeline_optim_score(dataset, measure, stop_score, decoder="logistic", labels=None, decoding_analysis=True, save_dir=None, **kwargs):
+def pipeline_optim_score(dataset, measure, stop_score, decoder="logistic", conditions=None, labels=None, decoding_analysis=True, save_dir=None, **kwargs):
     """
     Args:
         dataset: tuple (X, condition) or dataset id (str). 
@@ -245,7 +246,12 @@ def pipeline_optim_score(dataset, measure, stop_score, decoder="logistic", label
         dataset = Dataset(dataset)
     else:
         dataset_id = None
-    X, conditions = dataset
+
+    # TODO: simplify API
+    if isinstance(dataset, tuple):
+        X, conditions = dataset
+    else:
+        X = dataset
 
     if isinstance(measure, str):
         measure_id = measure
@@ -337,3 +343,19 @@ def pipeline_optim_score(dataset, measure, stop_score, decoder="logistic", label
         decoding_res_df.to_csv(save_dir / "score_vs_decoding_acc.csv")
 
     return fit_res, pc_res_df, decoding_res_df
+
+
+@dataclass
+class PCResult:
+    threshold_scores: np.ndarray
+    pc_captured_variance: np.ndarray
+    pc_variance: np.ndarray
+
+
+def analyze_pc(res: OptimResult, save_dir=None) -> PCResult:
+    pc_res = pc_captured_variance(res.X, res.Ys, res.scores, expl_var_ratio=True, save_dir=save_dir)
+    return PCResult(
+        threshold_scores=pc_res["scores_at_threshold"],
+        pc_captured_variance=pc_res["pc_captured_variance"],
+        pc_variance=pc_res["pc_explained_variance"]
+    )

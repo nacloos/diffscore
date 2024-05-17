@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Callable
 import numpy as np
 import torch
 import torch.nn as nn
@@ -34,12 +38,16 @@ class MeasureOptim:
         self.Ys = [self.Y0]
         self.scores = [self.measure(X, self.Y0)]
 
-        if self.optimizer == "Adam":
-            optim = torch.optim.Adam([Y], lr=self.lr)
-        elif self.optimizer == "SGD":
-            optim = torch.optim.SGD([Y], lr=self.lr)
+        if isinstance(self.optimizer, str):
+            optim = getattr(torch.optim, self.optimizer)([Y], lr=self.lr)
         else:
-            raise NotImplementedError
+            optim = self.optimizer([Y], lr=self.lr)
+        # if self.optimizer == "Adam":
+        #     optim = torch.optim.Adam([Y], lr=self.lr)
+        # elif self.optimizer == "SGD":
+        #     optim = torch.optim.SGD([Y], lr=self.lr)
+        # else:
+        #     raise NotImplementedError
         # print("Optimizing with", optim)
 
         resample = False
@@ -55,7 +63,7 @@ class MeasureOptim:
             # print(score)
 
             if i % self.log_steps == 0:
-                print("Iter {}, similarity: {}".format(i, score))
+                print("Iter {}, score: {}".format(i, score))
 
             self.Ys.append(torch.clone(Y))
             self.scores.append(score)
@@ -82,6 +90,64 @@ class MeasureOptim:
         return self
 
 
+@dataclass
+class OptimResult:
+    X: np.ndarray
+    Ys: list[np.ndarray]
+    scores: list[float]
+
+
+def optimize(dataset: str | np.ndarray, measure: str | Callable, stop_score: float = np.inf, init_dataset=None, optimizer="Adam", lr=1e-1, max_iter=1000, verbose=True) -> OptimResult:
+    """
+    Optimize a randomly initialized dataset to maximize similarity with input dataset.
+
+    Args:
+        dataset: dataset id if str or np.ndarray
+        measure: measure id if str or callable that takes two datasets and returns a score
+        stop_score: stop when similarity reaches this score
+        init_dataset: initial dataset to fit
+        optimizer: optimizer name
+        lr: learning rate
+        max_iter: max number of iterations
+        verbose: print progress
+
+    Returns:
+        OptimResult object with attributes:
+            X: input dataset
+            Ys: list of fitted datasets
+            scores: list of scores
+    """
+    data = Dataset(dataset)[0] if isinstance(dataset, str) else dataset
+    measure = Measure(measure) if isinstance(measure, str) else measure
+
+    if init_dataset is not None:
+        # prevent inplace modification
+        init_dataset = init_dataset.copy()
+
+    if not verbose:
+        log_steps = np.inf
+    else:
+        log_steps = 10
+
+    optim = MeasureOptim(
+        measure=measure,
+        optimizer=optimizer,
+        lr=lr,
+        n_iter=max_iter,
+        log_steps=log_steps,
+        stop_crit=stop_score,
+        is_dist=False
+    )
+    optim.fit(data, Y0=init_dataset)
+
+    return OptimResult(
+        X=data,
+        Ys=[Y.detach().numpy() for Y in optim.Ys],
+        scores=optim.scores
+    )
+
+
+# deprecated
 def fit_measure(
     dataset,
     measure=None,
@@ -117,6 +183,8 @@ def fit_measure(
             score: final score
             metric_id: measure.id
     """
+    print("fit_measure is deprecated, use optimize instead")
+ 
     if isinstance(dataset, str):
         data, conditions = Dataset(dataset)
     else:

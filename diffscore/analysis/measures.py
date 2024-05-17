@@ -542,11 +542,23 @@ register(
     partial(measure_linreg, alpha=1, n_splits=None)
 )
 register(
+    "measure.ridge-lambda1-r2",
+    partial(measure_linreg, alpha=1, n_splits=None)
+)
+register(
     "measure.ridge-lambda10-r2#no_cv",
     partial(measure_linreg, alpha=10, n_splits=None)
 )
 register(
     "measure.ridge-lambda100-r2#no_cv",
+    partial(measure_linreg, alpha=100, n_splits=None)
+)
+register(
+    "measure.ridge-lambda10-r2",
+    partial(measure_linreg, alpha=10, n_splits=None)
+)
+register(
+    "measure.ridge-lambda100-r2",
     partial(measure_linreg, alpha=100, n_splits=None)
 )
 
@@ -690,3 +702,46 @@ def _():
 
         return score
     return _fit_score
+
+
+@register("measure.cka-hsic_song")
+def cka_hsic_song():
+    """
+    Code adapted from https://github.com/google-research/google-research/blob/master/representation_similarity/Demo.ipynb
+    Convert numpy to pytorch
+    """
+    def center_gram(gram):
+        n = gram.shape[0]
+        gram.fill_diagonal_(0)
+        means = torch.sum(gram, 0, dtype=torch.float64) / (n - 2)
+        means -= torch.sum(means) / (2 * (n - 1))
+        gram -= means[:, None]
+        gram -= means[None, :]
+        gram.fill_diagonal_(0)
+        return gram
+
+    def _fit_score(X, Y):
+        X, Y = reshape2d(X, Y)
+
+        gram_x = X @ X.T
+        gram_y = Y @ Y.T
+
+        gram_x = center_gram(gram_x)
+        gram_y = center_gram(gram_y)
+
+        scaled_hsic = gram_x.ravel().dot(gram_y.ravel())
+        normalization_x = torch.linalg.norm(gram_x)
+        normalization_y = torch.linalg.norm(gram_y)
+        return scaled_hsic / (normalization_x * normalization_y)
+
+    return _fit_score
+
+
+if __name__ == "__main__":
+    import similarity
+    X, Y = np.random.rand(10, 15, 5), np.random.rand(10, 15, 5)
+    cka = similarity.make("measure.kornblith19.cka-hsic_song")
+    cka2 = similarity.make("measure.diffscore.cka-hsic_song")
+
+    print(cka(X, Y))
+    print(cka2(X, Y))

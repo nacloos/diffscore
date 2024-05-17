@@ -1,3 +1,5 @@
+from functools import partial
+
 from . import toy
 from .toy import exp_gaussian, ultrametric, toy2d
 
@@ -6,6 +8,7 @@ from diffscore import register
 
 register("dataset.toy2d", toy2d)
 register("dataset.exp-gaussian", exp_gaussian)
+register("dataset.exp-gaussian-dim50", partial(exp_gaussian, dim=50))
 register("dataset.ultrametric", ultrametric)
 
 
