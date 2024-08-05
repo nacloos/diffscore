@@ -14,8 +14,11 @@ def reshape2d(X, Y, to_tensor=True):
         Y = torch.as_tensor(Y)
 
     # convert to same dtype (some measures raise error if dtype is different)
-    X = X.double()
-    Y = Y.double()
+    # TODO: raise RuntimeError: Index out of range
+    # X = X.double()
+    # Y = Y.double()
+
+    Y = Y.to(X.dtype)
 
     if len(X.shape) == 3:
         X = X.reshape(X.shape[0]*X.shape[1], -1)
@@ -461,7 +464,7 @@ register("measure.linreg-angular-cv", partial(linreg_cv, arccos=True))
 
 
 @register("measure.linreg-r2#5folds_cv")
-def measure_linreg(zero_pad=True, alpha=0, n_splits=5):
+def measure_linreg(zero_pad=True, alpha=0, n_splits=5, agg_fun="r2"):
     class LinRegScore:
         def fit(self, X, Y):
             # zero padding
@@ -489,8 +492,19 @@ def measure_linreg(zero_pad=True, alpha=0, n_splits=5):
             Y = Y - self.my
 
             X_pred = Y @ self.B
-            R2 = 1 - torch.linalg.norm(X - X_pred) ** 2 / torch.linalg.norm(X) ** 2
-            return R2
+
+            if agg_fun == "r2":
+                R2 = 1 - torch.linalg.norm(X - X_pred) ** 2 / torch.linalg.norm(X) ** 2
+                return R2
+            elif agg_fun == "pearsonr":
+                r = torch.dot(X.ravel(), X_pred.ravel()) / (torch.linalg.norm(X) * torch.linalg.norm(X_pred))
+                # from scipy.stats import pearsonr
+                # r_gt = pearsonr(X.ravel().detach(), X_pred.ravel().detach())
+                # breakpoint()
+                # print(r_gt.statistic, r)
+                return r
+            else:
+                raise NotImplementedError(f"agg_fun={agg_fun}")
 
     linreg = LinRegScore()
 
@@ -521,46 +535,137 @@ def measure_linreg(zero_pad=True, alpha=0, n_splits=5):
     return _fit_score
 
 
-register(
-    "measure.linreg-r2#no_cv",
-    partial(measure_linreg, n_splits=None)
-)
-register(
-    "measure.ridge-lambda1-r2#5folds_cv",
-    partial(measure_linreg, alpha=1)
-)
-register(
-    "measure.ridge-lambda10-r2#5folds_cv",
-    partial(measure_linreg, alpha=10)
-)
-register(
-    "measure.ridge-lambda100-r2#5folds_cv",
-    partial(measure_linreg, alpha=100)
-)
-register(
-    "measure.ridge-lambda1-r2#no_cv",
-    partial(measure_linreg, alpha=1, n_splits=None)
-)
-register(
-    "measure.ridge-lambda1-r2",
-    partial(measure_linreg, alpha=1, n_splits=None)
-)
-register(
-    "measure.ridge-lambda10-r2#no_cv",
-    partial(measure_linreg, alpha=10, n_splits=None)
-)
-register(
-    "measure.ridge-lambda100-r2#no_cv",
-    partial(measure_linreg, alpha=100, n_splits=None)
-)
-register(
-    "measure.ridge-lambda10-r2",
-    partial(measure_linreg, alpha=10, n_splits=None)
-)
-register(
-    "measure.ridge-lambda100-r2",
-    partial(measure_linreg, alpha=100, n_splits=None)
-)
+# register(
+#     "measure.linreg-r2#no_cv",
+#     partial(measure_linreg, n_splits=None)
+# )
+# register(
+#     "measure.ridge-lambda1-r2#5folds_cv",
+#     partial(measure_linreg, alpha=1)
+# )
+# register(
+#     "measure.ridge-lambda10-r2#5folds_cv",
+#     partial(measure_linreg, alpha=10)
+# )
+# register(
+#     "measure.ridge-lambda100-r2#5folds_cv",
+#     partial(measure_linreg, alpha=100)
+# )
+# register(
+#     "measure.ridge-lambda1000-r2#5folds_cv",
+#     partial(measure_linreg, alpha=1000)
+# )
+# register(
+#     "measure.ridge-lambda1-r2#no_cv",
+#     partial(measure_linreg, alpha=1, n_splits=None)
+# )
+# register(
+#     "measure.ridge-lambda1-r2",
+#     partial(measure_linreg, alpha=1, n_splits=None)
+# )
+# register(
+#     "measure.ridge-lambda10-r2#no_cv",
+#     partial(measure_linreg, alpha=10, n_splits=None)
+# )
+# register(
+#     "measure.ridge-lambda100-r2#no_cv",
+#     partial(measure_linreg, alpha=100, n_splits=None)
+# )
+# register(
+#     "measure.ridge-lambda10-r2",
+#     partial(measure_linreg, alpha=10, n_splits=None)
+# )
+# register(
+#     "measure.ridge-lambda100-r2",
+#     partial(measure_linreg, alpha=100, n_splits=None)
+# )
+
+# # pearsonr
+# register(
+#     "measure.linreg-pearsonr#5folds_cv",
+#     partial(measure_linreg, agg_fun="pearsonr")
+# )
+# register(
+#     "measure.linreg-pearsonr#5folds_cv",
+#     partial(measure_linreg, agg_fun="pearsonr")
+# )
+# register(
+#     "measure.ridge-lambda1-pearsonr#5folds_cv",
+#     partial(measure_linreg, alpha=1, agg_fun="pearsonr")
+# )
+# register(
+#     "measure.ridge-lambda10-pearsonr#5folds_cv",
+#     partial(measure_linreg, alpha=10, agg_fun="pearsonr")
+# )
+# register(
+#     "measure.ridge-lambda100-pearsonr#5folds_cv",
+#     partial(measure_linreg, alpha=100, agg_fun="pearsonr")
+# )
+# register(
+#     "measure.ridge-lambda1000-pearsonr#5folds_cv",
+#     partial(measure_linreg, alpha=1000, agg_fun="pearsonr")
+# )
+
+# # pearsonr, no cv
+# register(
+#     "measure.linreg-pearsonr#no_cv",
+#     partial(measure_linreg, n_splits=None, agg_fun="pearsonr")
+# )
+# register(
+#     "measure.linreg-pearsonr#no_cv",
+#     partial(measure_linreg, n_splits=None, agg_fun="pearsonr")
+# )
+# register(
+#     "measure.ridge-lambda1-pearsonr#no_cv",
+#     partial(measure_linreg, alpha=1, n_splits=None, agg_fun="pearsonr")
+# )
+# register(
+#     "measure.ridge-lambda10-pearsonr#no_cv",
+#     partial(measure_linreg, alpha=10, n_splits=None, agg_fun="pearsonr")
+# )
+# register(
+#     "measure.ridge-lambda100-pearsonr#no_cv",
+#     partial(measure_linreg, alpha=100, n_splits=None, agg_fun="pearsonr")
+# )
+# register(
+#     "measure.ridge-lambda1000-pearsonr#no_cv",
+#     partial(measure_linreg, alpha=1000, n_splits=None, agg_fun="pearsonr")
+# )
+
+
+for n_splits in [None, 5]:
+    for alpha in [0, 1, 10, 100, 1000, 10000]:
+        for agg_fun in ["r2", "pearsonr"]:
+            name = "linreg" if alpha == 0 else f"ridge-lambda{alpha}"
+            cv = "no_cv" if n_splits is None else f"{n_splits}folds_cv"
+            print("registering", f"measure.{name}-{agg_fun}#{cv}")
+            register(
+                f"measure.{name}-{agg_fun}#{cv}",
+                partial(measure_linreg, alpha=alpha, n_splits=n_splits, agg_fun=agg_fun)
+            )
+
+# linear regression symmetric
+def measure_linreg_sym(zero_pad=True, alpha=0, n_splits=5, agg_fun="r2"):
+    linreg = measure_linreg(zero_pad=zero_pad, alpha=alpha, n_splits=n_splits, agg_fun=agg_fun)
+
+    def _fit_score(X, Y):
+        score1 = linreg(X, Y)
+        score2 = linreg(Y, X)
+        return (score1 + score2) / 2
+
+    return _fit_score
+
+
+for n_splits in [None, 5]:
+    for alpha in [0, 1, 10, 100, 1000, 10000]:
+        for agg_fun in ["r2", "pearsonr"]:
+            name = "linreg" if alpha == 0 else f"ridge-lambda{alpha}"
+            cv = "no_cv" if n_splits is None else f"{n_splits}folds_cv"
+            print("registering", f"measure.{name}-{agg_fun}-sym#{cv}")
+            register(
+                f"measure.{name}-{agg_fun}-sym#{cv}",
+                partial(measure_linreg_sym, alpha=alpha, n_splits=n_splits, agg_fun=agg_fun)
+            )
 
 
 def kfold_crossval(measure, n_splits=5):
