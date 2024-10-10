@@ -638,7 +638,7 @@ for n_splits in [None, 5]:
         for agg_fun in ["r2", "pearsonr"]:
             name = "linreg" if alpha == 0 else f"ridge-lambda{alpha}"
             cv = "no_cv" if n_splits is None else f"{n_splits}folds_cv"
-            print("registering", f"measure.{name}-{agg_fun}#{cv}")
+            # print("registering", f"measure.{name}-{agg_fun}#{cv}")
             register(
                 f"measure.{name}-{agg_fun}#{cv}",
                 partial(measure_linreg, alpha=alpha, n_splits=n_splits, agg_fun=agg_fun)
@@ -661,7 +661,7 @@ for n_splits in [None, 5]:
         for agg_fun in ["r2", "pearsonr"]:
             name = "linreg" if alpha == 0 else f"ridge-lambda{alpha}"
             cv = "no_cv" if n_splits is None else f"{n_splits}folds_cv"
-            print("registering", f"measure.{name}-{agg_fun}-sym#{cv}")
+            # print("registering", f"measure.{name}-{agg_fun}-sym#{cv}")
             register(
                 f"measure.{name}-{agg_fun}-sym#{cv}",
                 partial(measure_linreg_sym, alpha=alpha, n_splits=n_splits, agg_fun=agg_fun)

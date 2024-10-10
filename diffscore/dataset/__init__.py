@@ -2,7 +2,7 @@ from functools import partial
 
 from . import toy
 from .toy import exp_gaussian, ultrametric, toy2d
-from . import siegel15
+# from . import siegel15  # TODO: require multisys
 
 from diffscore import register
 
