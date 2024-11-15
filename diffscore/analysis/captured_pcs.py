@@ -59,6 +59,13 @@ def projected_r2(X, Y, orth=False):
 
         R2i = 1 - np.sum((xi - xi_pred) ** 2) / np.sum(xi ** 2)
 
+
+        # other way to compute R2 for each PC
+        # bi = np.linalg.lstsq(Y, xi, rcond=None)[0]
+        # xi_pred_bis = Y @ bi
+        # R2i_bis = 1 - np.sum((xi - xi_pred_bis) ** 2) / np.sum(xi ** 2)
+        # assert np.allclose(R2i, R2i_bis)
+
         # reshape to temporal data
         if X.ndim == 3:
             xi = xi.reshape(n_steps, n_trials)

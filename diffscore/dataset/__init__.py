@@ -7,13 +7,13 @@ from .toy import exp_gaussian, ultrametric, toy2d
 from diffscore import register
 
 
-register("dataset.toy2d", toy2d)
-register("dataset.exp-gaussian", exp_gaussian)
-register("dataset.exp-gaussian-dim50", partial(exp_gaussian, dim=50))
-register("dataset.ultrametric", ultrametric)
+register("dataset/toy2d", toy2d)
+register("dataset/exp-gaussian", exp_gaussian)
+register("dataset/exp-gaussian-dim50", partial(exp_gaussian, dim=50))
+register("dataset/ultrametric", ultrametric)
 
 
-@register("dataset.Hatsopoulos2007")
+@register("dataset/Hatsopoulos2007")
 def hatsopoulos2007():
     from .hatsopoulos2007 import process_data
     # activity during movement period
@@ -21,7 +21,7 @@ def hatsopoulos2007():
     return data["activity"], data["trial_info"]
 
 
-@register("dataset.Mante2013")
+@register("dataset/Mante2013")
 def mante2013(for_decoding=True):
     import numpy as np
     from .mante2013 import process_data
@@ -49,7 +49,7 @@ def mante2013(for_decoding=True):
     return data["activity"], conditions
 
 
-@register("dataset.Mante2013-var95")
+@register("dataset/Mante2013-var95")
 def mante2013_var95():
     from sklearn.decomposition import PCA
     X, conditions = mante2013(for_decoding=True)
@@ -59,7 +59,7 @@ def mante2013_var95():
     return X, conditions
 
 
-@register("dataset.Mante2013-var99")
+@register("dataset/Mante2013-var99")
 def mante2013_var99():
     from sklearn.decomposition import PCA
     X, conditions = mante2013(for_decoding=True)
@@ -69,7 +69,7 @@ def mante2013_var99():
     return X, conditions
 
 
-@register("dataset.MajajHong2015")
+@register("dataset/MajajHong2015")
 def majajhong2015():
     import numpy as np
     import brainscore_vision
@@ -94,7 +94,7 @@ def majajhong2015():
     return X, conditions
 
 
-@register("dataset.FreemanZiemba2013")
+@register("dataset/FreemanZiemba2013")
 def freemanziemba2013(bin_size=150):
     import numpy as np
     import brainscore_vision

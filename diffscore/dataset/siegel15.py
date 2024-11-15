@@ -47,7 +47,7 @@ def siegel15_decoding():
         decode_label(dataset, label=label, method=method, legend=legend, save_path=Path('figures') / 'decoding' / method)
 
 
-# @register("dataset.siegel15")
+# @register("dataset/siegel15")
 # def siegel15_dataset(dt=50, load=True):
 #     return Siegel15Dataset(dt=dt, load=load)
 
@@ -57,7 +57,7 @@ def _make_siegel15_dataset_cached(**kwargs):
     return Siegel15Dataset(**kwargs)
 
 
-@register("dataset.siegel15")
+@register("dataset/siegel15")
 def siegel15_data(dt=50, subject="paula", region=None, t_min=-1500, t_max=500, pca_components=None, use_cache=False):
     if use_cache:
         dataset = _make_siegel15_dataset_cached(dt=dt, load=True)
@@ -97,10 +97,10 @@ def siegel15_data(dt=50, subject="paula", region=None, t_min=-1500, t_max=500, p
     return data, conditions
 
 
-register("dataset.siegel15-FEF", partial(siegel15_data, region="FEF"))
-register("dataset.siegel15-V4", partial(siegel15_data, region="V4"))
-register("dataset.siegel15-IT", partial(siegel15_data, region="IT"))
-register("dataset.siegel15-stim_period-var99", partial(siegel15_data, t_min=0, t_max=500, pca_components=0.99))
+register("dataset/siegel15-FEF", partial(siegel15_data, region="FEF"))
+register("dataset/siegel15-V4", partial(siegel15_data, region="V4"))
+register("dataset/siegel15-IT", partial(siegel15_data, region="IT"))
+register("dataset/siegel15-stim_period-var99", partial(siegel15_data, t_min=0, t_max=500, pca_components=0.99))
 
 
 for region in REGIONS:
