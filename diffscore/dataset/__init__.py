@@ -50,24 +50,23 @@ def mante2013(for_decoding=True):
 
 
 @register("dataset.Mante2013-var95")
-def mante2013_var95():
+def mante2013_var95(n_components=0.95):
     from sklearn.decomposition import PCA
     X, conditions = mante2013(for_decoding=True)
 
-    pca = PCA(n_components=0.95)
+    pca = PCA(n_components=n_components)
     X = pca.fit_transform(X.reshape(X.shape[0]*X.shape[1], -1)).reshape(X.shape[0], X.shape[1], -1)
     return X, conditions
 
 
 @register("dataset.Mante2013-var99")
-def mante2013_var99():
+def mante2013_var99(n_components=0.99):
     from sklearn.decomposition import PCA
     X, conditions = mante2013(for_decoding=True)
 
-    pca = PCA(n_components=0.99)
+    pca = PCA(n_components=n_components)
     X = pca.fit_transform(X.reshape(X.shape[0]*X.shape[1], -1)).reshape(X.shape[0], X.shape[1], -1)
     return X, conditions
-
 
 @register("dataset.MajajHong2015")
 def majajhong2015():
