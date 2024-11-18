@@ -337,7 +337,9 @@ def pipeline_optim_score(dataset, measure, stop_score, decoder="logistic", condi
         "dataset": [dataset_id] * len(scores),
         # add individual decoding accuracy for each label
         # use convention "decode.{label}" for columns corresponding to decoded task variables
-        **{f"decode.{label}": acc for label, acc in decoding_acc_results.items()}
+        **{f"decode.{label}": acc for label, acc in decoding_acc_results.items()},
+        # decoding accuracy from reference dataset
+        **{f"reference.{label}": [ref_acc_results[label]] * len(scores) for label, _ in decoding_acc_results.items()},
     })
     if save_dir:
         decoding_res_df.to_csv(save_dir / "score_vs_decoding_acc.csv")
