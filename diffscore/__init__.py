@@ -44,4 +44,4 @@ from diffscore import env
 from diffscore import training
 
 from diffscore.training import fit_measure, optimize, OptimResult
-from diffscore.analysis import pipeline_optim_score
+from diffscore.analysis import pipeline_optim_score, optim_square

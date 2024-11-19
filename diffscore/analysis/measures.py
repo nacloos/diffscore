@@ -256,8 +256,6 @@ def cka_angular_score(X, Y):
 @register("measure/rsa-correlation-corr")
 def rsa_correlation_corr(X, Y):
     rsa = RSA(arccos=False)
-    X = torch.as_tensor(X)
-    Y = torch.as_tensor(Y)
     return rsa(X, Y)
 
 
@@ -326,37 +324,34 @@ def cca_angular_score(X, Y):
     return 1 - cca_angular(X, Y) / (np.pi/2)
 
 
+# @register("measure/svcca-angular")
+# TODO: match dim wth pca instead of zero padding?
+
 @register("measure/linreg")
-def linreg(arccos=False, zero_pad=True):
-    # X: neural data, Y: model data
-    # ref: https://arxiv.org/pdf/1905.00414.pdf
-    # R2 = 1 - min_B || X - YB ||_F^2 / || X ||_F^2 = || Q_Y.T X ||_F^2 / || X ||_F^2
-    def _fit_score(X, Y):
-        # n_steps, n_trials, n_neurons = X.shape
-        X, Y = reshape2d(X, Y)
-        # zero padding
-        X, Y = check_equal_shapes(X, Y, nd=2, zero_pad=zero_pad)
+def linreg(X, Y, arccos=False, zero_pad=True):
+    X, Y = reshape2d(X, Y)
+    X, Y = check_equal_shapes(X, Y, nd=2, zero_pad=zero_pad)
 
-        X = X - X.mean(axis=0)
-        Y = Y - Y.mean(axis=0)
+    X = X - X.mean(axis=0)
+    Y = Y - Y.mean(axis=0)
 
-        Q, R = torch.linalg.qr(Y)
-        R2 = torch.linalg.norm(Q.T @ X) ** 2 / torch.linalg.norm(X) ** 2
+    Q, R = torch.linalg.qr(Y)
+    R2 = torch.linalg.norm(Q.T @ X) ** 2 / torch.linalg.norm(X) ** 2
 
-        if arccos:
-            if torch.abs(R2 - 1) < 1e-5:
-                # arccos of 1 gives nan
-                return torch.tensor(0.)
-            R2 = torch.arccos(R2)
-        return R2
-    return _fit_score
+    if arccos:
+        if torch.abs(R2 - 1) < 1e-5:
+            return torch.tensor(0.)
+        R2 = torch.arccos(R2)
+    return R2
 
 
-register("measure/linreg-angular", partial(linreg, arccos=True))
+@register("measure/linreg-angular")
+def linreg_angular(X, Y, zero_pad=True):
+    return linreg(X, Y, arccos=True, zero_pad=zero_pad)
 
 
 @register("measure/linreg-cv")
-def linreg_cv(arccos=False, zero_pad=True, n_splits=5, fit_ratio=0.8):
+def linreg_cv(X, Y, arccos=False, zero_pad=True, n_splits=5, fit_ratio=0.8):
     class LinRegScore:
         def __init__(self, arccos=False, zero_pad=True):
             self.arccos = arccos
@@ -394,38 +389,26 @@ def linreg_cv(arccos=False, zero_pad=True, n_splits=5, fit_ratio=0.8):
             return R2
 
     linreg = LinRegScore(arccos=arccos, zero_pad=zero_pad)
+    n_conditions = X.shape[1]
+    n_fit = int(n_conditions * fit_ratio)
 
-    def _fit_score(X, Y):
-        # linreg.fit(X, Y)
-        # score1 = linreg.score(X, Y)
-        # score2 = make("measure.linreg", arccos=arccos)(X, Y)
-        # assert torch.allclose(score1, score2), f"{score1} != {score2}"
-        # print("Check passed")
+    scores = torch.zeros(n_splits)
+    for i in range(n_splits):
+        indices = torch.randperm(n_conditions)
+        fit_conditions = indices[:n_fit]
+        val_conditions = indices[n_fit:]
 
-        # cross val over conditions
-        n_conditions = X.shape[1]
-        n_fit = int(n_conditions * fit_ratio)
+        fit_X = X[:, fit_conditions, :]
+        val_X = X[:, val_conditions, :]
+        fit_Y = Y[:, fit_conditions, :]
+        val_Y = Y[:, val_conditions, :]
 
-        scores = torch.zeros(n_splits)
-        for i in range(n_splits):
-            indices = torch.randperm(n_conditions)
-            fit_conditions = indices[:n_fit]
-            val_conditions = indices[n_fit:]
-            assert len(fit_conditions) + len(val_conditions) == n_conditions
+        linreg.fit(fit_X, fit_Y)
+        score = linreg.score(val_X, val_Y)
+        scores[i] = score
+    score = torch.mean(scores)
+    return score
 
-            fit_X = X[:, fit_conditions, :]
-            val_X = X[:, val_conditions, :]
-
-            fit_Y = Y[:, fit_conditions, :]
-            val_Y = Y[:, val_conditions, :]
-
-            linreg.fit(fit_X, fit_Y)
-            score = linreg.score(val_X, val_Y)
-            scores[i] = score
-        score = torch.mean(scores)
-        return score
-
-    return _fit_score
 
 
 register("measure/linreg-angular-cv", partial(linreg_cv, arccos=True))
@@ -700,81 +683,61 @@ def test_pytorch_metric(dataset, metric_id):
 
 
 @register("measure/nbs-squared")
-def _():
-    def _fit_score(X, Y):
-        X, Y = reshape2d(X, Y)
-        # centering
-        X = X - torch.mean(X, dim=0)
-        Y = Y - torch.mean(Y, dim=0)
+def nbs_squared(X, Y):
+    X, Y = reshape2d(X, Y)
+    X = X - torch.mean(X, dim=0)
+    Y = Y - torch.mean(Y, dim=0)
 
-        sXY = torch.linalg.svdvals(X.T @ Y)
-        sXX = torch.linalg.svdvals(X @ X.T)
-        sYY = torch.linalg.svdvals(Y @ Y.T)
+    sXY = torch.linalg.svdvals(X.T @ Y)
+    sXX = torch.linalg.svdvals(X @ X.T)
+    sYY = torch.linalg.svdvals(Y @ Y.T)
 
-        nbs_squared = torch.sum(sXY)**2 / (torch.sum(sXX) * torch.sum(sYY))
-        return nbs_squared
-    return _fit_score
+    nbs_squared = torch.sum(sXY)**2 / (torch.sum(sXX) * torch.sum(sYY))
+    return nbs_squared
 
 
 @register("measure/nbs")
-def _():
-    nbs_square = make("measure.nbs-squared")
-    def _fit_score(X, Y):
-        return torch.sqrt(nbs_square(X, Y))
-    return _fit_score
+def nbs(X, Y):
+    return torch.sqrt(nbs_squared(X, Y))
+
 
 @register("measure/nbs-angular")
-def _():
-    nbs = make("measure.nbs")
-    def _fit_score(X, Y):
-        return torch.acos(nbs(X, Y))
-    return _fit_score
+def nbs_angular(X, Y):
+    return torch.acos(nbs(X, Y))
 
 
 @register("measure/nbs-angular-score")
-def _():
-    nbs = make("measure.nbs-angular")
-    def _fit_score(X, Y):
-        return 1 - nbs(X, Y) / (np.pi/2)
-    return _fit_score
-
-# TODO: what about nbs-squared-angular? (don't think it is a metric like nbs-angular = procrustes-angular metric)
+def nbs_angular_score(X, Y):
+    return 1 - nbs_angular(X, Y) / (np.pi/2)
 
 
 @register("measure/cka")
-def _():
-    def _fit_score(X, Y):
-        X, Y = reshape2d(X, Y)
-        # centering
-        X = X - torch.mean(X, dim=0)
-        Y = Y - torch.mean(Y, dim=0)
+def cka(X, Y):
+    X, Y = reshape2d(X, Y)
+    X = X - torch.mean(X, dim=0)
+    Y = Y - torch.mean(Y, dim=0)
 
-        sXY = torch.linalg.svdvals(X.T @ Y)
-        sXX = torch.linalg.svdvals(X @ X.T)
-        sYY = torch.linalg.svdvals(Y @ Y.T)
+    sXY = torch.linalg.svdvals(X.T @ Y)
+    sXX = torch.linalg.svdvals(X @ X.T)
+    sYY = torch.linalg.svdvals(Y @ Y.T)
 
-        cka = torch.sum(sXY**2) / (torch.sqrt(torch.sum(sXX**2)) * torch.sqrt(torch.sum(sYY**2)))
-        return cka
-    return _fit_score
+    cka = torch.sum(sXY**2) / (torch.sqrt(torch.sum(sXX**2)) * torch.sqrt(torch.sum(sYY**2)))
+    return cka
 
 
 @register("measure/ensd")
-def _():
-    def _fit_score(X, Y):
-        X, Y = reshape2d(X, Y)
-        # centering
-        X = X - torch.mean(X, dim=0)
-        Y = Y - torch.mean(Y, dim=0)
+def ensd(X, Y):
+    X, Y = reshape2d(X, Y)
+    X = X - torch.mean(X, dim=0)
+    Y = Y - torch.mean(Y, dim=0)
 
-        # https://www.biorxiv.org/content/10.1101/2023.07.27.550815v1.full.pdf
-        YtX = Y.T @ X
-        XtY = YtX.T
-        XtX = X.T @ X
-        YtY = Y.T @ Y
-        score = torch.trace(YtX @ XtY) * torch.trace(XtX) * torch.trace(YtY) / (torch.trace(XtX @ XtX) * torch.trace(YtY @ YtY))
+    YtX = Y.T @ X
+    XtY = YtX.T
+    XtX = X.T @ X
+    YtY = Y.T @ Y
+    score = torch.trace(YtX @ XtY) * torch.trace(XtX) * torch.trace(YtY) / (torch.trace(XtX @ XtX) * torch.trace(YtY @ YtY))
 
-        return score
-    return _fit_score
+    return score
 
 
 @register("measure/cka-hsic_song")
@@ -793,205 +756,18 @@ def cka_hsic_song():
         gram.fill_diagonal_(0)
         return gram
 
-    def _fit_score(X, Y):
-        X, Y = reshape2d(X, Y)
-
-        gram_x = X @ X.T
-        gram_y = Y @ Y.T
-
-        gram_x = center_gram(gram_x)
-        gram_y = center_gram(gram_y)
-
-        scaled_hsic = gram_x.ravel().dot(gram_y.ravel())
-        normalization_x = torch.linalg.norm(gram_x)
-        normalization_y = torch.linalg.norm(gram_y)
-        return scaled_hsic / (normalization_x * normalization_y)
-
-    return _fit_score
-
-
-@register("measure/linreg-angular")
-def linreg_angular(X, Y, zero_pad=True):
-    X = torch.as_tensor(X)
-    Y = torch.as_tensor(Y)
     X, Y = reshape2d(X, Y)
-    # zero padding
-    X, Y = check_equal_shapes(X, Y, nd=2, zero_pad=zero_pad)
+    gram_x = X @ X.T
+    gram_y = Y @ Y.T
 
-    X = X - X.mean(axis=0)
-    Y = Y - Y.mean(axis=0)
+    gram_x = center_gram(gram_x)
+    gram_y = center_gram(gram_y)
 
-    Q, R = torch.linalg.qr(Y)
-    R2 = torch.linalg.norm(Q.T @ X) ** 2 / torch.linalg.norm(X) ** 2
+    scaled_hsic = gram_x.ravel().dot(gram_y.ravel())
+    normalization_x = torch.linalg.norm(gram_x)
+    normalization_y = torch.linalg.norm(gram_y)
+    return scaled_hsic / (normalization_x * normalization_y)
 
-    if torch.abs(R2 - 1) < 1e-5:
-        # arccos of 1 gives nan
-        return torch.tensor(0.)
-    return torch.arccos(R2)
-
-@register("measure/linreg-angular-cv")
-def linreg_angular_cv(X, Y, zero_pad=True, n_splits=5, fit_ratio=0.8):
-    X = torch.as_tensor(X)
-    Y = torch.as_tensor(Y)
-    
-    class LinRegScore:
-        def __init__(self, zero_pad=True):
-            self.zero_pad = zero_pad
-
-        def fit(self, X, Y):
-            X, Y = reshape2d(X, Y)
-            X, Y = check_equal_shapes(X, Y, nd=2, zero_pad=self.zero_pad)
-
-            self.mx = X.mean(axis=0)
-            self.my = Y.mean(axis=0)
-            X = X - self.mx
-            Y = Y - self.my
-            self.B = torch.linalg.lstsq(Y, X).solution
-
-        def score(self, X, Y):
-            X, Y = reshape2d(X, Y)
-            X, Y = check_equal_shapes(X, Y, nd=2, zero_pad=self.zero_pad)
-
-            X = X - self.mx
-            Y = Y - self.my
-
-            X_pred = Y @ self.B
-            R2 = 1 - torch.linalg.norm(X - X_pred) ** 2 / torch.linalg.norm(X) ** 2
-            if torch.abs(R2 - 1) < 1e-5:
-                return torch.tensor(0.)
-            return torch.arccos(R2)
-
-    linreg = LinRegScore(zero_pad=zero_pad)
-    
-    # cross val over conditions
-    n_conditions = X.shape[1]
-    n_fit = int(n_conditions * fit_ratio)
-
-    scores = torch.zeros(n_splits)
-    for i in range(n_splits):
-        indices = torch.randperm(n_conditions)
-        fit_conditions = indices[:n_fit]
-        val_conditions = indices[n_fit:]
-
-        fit_X = X[:, fit_conditions, :]
-        val_X = X[:, val_conditions, :]
-        fit_Y = Y[:, fit_conditions, :]
-        val_Y = Y[:, val_conditions, :]
-
-        linreg.fit(fit_X, fit_Y)
-        scores[i] = linreg.score(val_X, val_Y)
-    return torch.mean(scores)
-
-@register("measure/linreg-r2")
-def linreg_r2(X, Y, zero_pad=True, alpha=0, n_splits=5, agg_fun="r2"):
-    X = torch.as_tensor(X)
-    Y = torch.as_tensor(Y)
-    
-    class LinRegScore:
-        def fit(self, X, Y):
-            X, Y = check_equal_shapes(X, Y, nd=2, zero_pad=zero_pad)
-            self.mx = X.mean(axis=0)
-            self.my = Y.mean(axis=0)
-            X = X - self.mx
-            Y = Y - self.my
-
-            if alpha > 0:
-                self.B = torch.linalg.lstsq(Y.T @ Y + alpha * torch.eye(Y.shape[1]), Y.T @ X).solution
-            else:
-                self.B = torch.linalg.lstsq(Y, X).solution
-
-        def score(self, X, Y):
-            X, Y = check_equal_shapes(X, Y, nd=2, zero_pad=zero_pad)
-            X = X - self.mx
-            Y = Y - self.my
-            X_pred = Y @ self.B
-
-            if agg_fun == "r2":
-                return 1 - torch.linalg.norm(X - X_pred) ** 2 / torch.linalg.norm(X) ** 2
-            elif agg_fun == "pearsonr":
-                return torch.dot(X.ravel(), X_pred.ravel()) / (torch.linalg.norm(X) * torch.linalg.norm(X_pred))
-            else:
-                raise NotImplementedError(f"agg_fun={agg_fun}")
-
-    linreg = LinRegScore()
-    X, Y = reshape2d(X, Y)
-
-    if n_splits is None:
-        linreg.fit(X, Y)
-        return linreg.score(X, Y)
-
-    # cross val over time and conditions concatenated
-    kfold = KFold(n_splits=n_splits, shuffle=False)
-    scores = torch.zeros(n_splits)
-    for i, (train_index, test_index) in enumerate(kfold.split(X)):
-        fit_X = X[train_index]
-        val_X = X[test_index]
-        fit_Y = Y[train_index]
-        val_Y = Y[test_index]
-
-        linreg.fit(fit_X, fit_Y)
-        scores[i] = linreg.score(val_X, val_Y)
-    return torch.mean(scores)
-
-@register("measure/nbs-squared")
-def nbs_squared(X, Y):
-    X = torch.as_tensor(X)
-    Y = torch.as_tensor(Y)
-    X, Y = reshape2d(X, Y)
-    
-    # centering
-    X = X - torch.mean(X, dim=0)
-    Y = Y - torch.mean(Y, dim=0)
-
-    sXY = torch.linalg.svdvals(X.T @ Y)
-    sXX = torch.linalg.svdvals(X @ X.T)
-    sYY = torch.linalg.svdvals(Y @ Y.T)
-
-    return torch.sum(sXY)**2 / (torch.sum(sXX) * torch.sum(sYY))
-
-@register("measure/nbs")
-def nbs(X, Y):
-    return torch.sqrt(nbs_squared(X, Y))
-
-@register("measure/nbs-angular")
-def nbs_angular(X, Y):
-    return torch.acos(nbs(X, Y))
-
-@register("measure/nbs-angular-score")
-def nbs_angular_score(X, Y):
-    return 1 - nbs_angular(X, Y) / (np.pi/2)
-
-@register("measure/cka")
-def cka(X, Y):
-    X = torch.as_tensor(X)
-    Y = torch.as_tensor(Y)
-    X, Y = reshape2d(X, Y)
-    
-    # centering
-    X = X - torch.mean(X, dim=0)
-    Y = Y - torch.mean(Y, dim=0)
-
-    sXY = torch.linalg.svdvals(X.T @ Y)
-    sXX = torch.linalg.svdvals(X @ X.T)
-    sYY = torch.linalg.svdvals(Y @ Y.T)
-
-    return torch.sum(sXY**2) / (torch.sqrt(torch.sum(sXX**2)) * torch.sqrt(torch.sum(sYY**2)))
-
-@register("measure/ensd")
-def ensd(X, Y):
-    X = torch.as_tensor(X)
-    Y = torch.as_tensor(Y)
-    X, Y = reshape2d(X, Y)
-    
-    # centering
-    X = X - torch.mean(X, dim=0)
-    Y = Y - torch.mean(Y, dim=0)
-
-    YtX = Y.T @ X
-    XtY = YtX.T
-    XtX = X.T @ X
-    YtY = Y.T @ Y
-    return torch.trace(YtX @ XtY) * torch.trace(XtX) * torch.trace(YtY) / (torch.trace(XtX @ XtX) * torch.trace(YtY @ YtY))
 
 if __name__ == "__main__":
     import similarity

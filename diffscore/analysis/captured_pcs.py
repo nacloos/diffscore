@@ -276,6 +276,10 @@ def pipeline_optim_score(dataset, measure, stop_score, decoder="logistic", condi
     fit_res = fit_measure(dataset=X, measure=measure, stop_crit=stop_score, **kwargs)
     Ys, scores = fit_res["fitted_datasets"], fit_res["scores"]
 
+    # fit_res = optimize(dataset=dataset, measure=measure, stop_score=stop_score, **kwargs)
+    # Ys = fit_res.Ys
+    # scores = fit_res.scores
+
     # TODO: give very low R2
     # pc_res = pc_captured_variance(
     #     X, Ys, scores, expl_var_ratio=True, 
