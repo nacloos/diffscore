@@ -108,12 +108,20 @@ def distance_alpha_procrustes(X, Y, alpha):
     # implementation adapted from https://github.com/rsagroup/rsatoolbox/blob/c23f41224a50326dfbd5675b284dfc129bea5e8a/src/rsatoolbox/rdm/compare.py#L678
     sX, uX = torch.linalg.eigh(X)
     sY, uY = torch.linalg.eigh(Y)
+    sX = torch.clip(sX, min=0.0)
+    sY = torch.clip(sY, min=0.0)
+ 
     X_alpha = uX @ (sX[:, None]**alpha * uX.T)
     Y_alpha = uY @ (sY[:, None]**alpha * uY.T)
-    d = 1/alpha * torch.sqrt(
-        torch.trace(X_alpha**2) + torch.trace(Y_alpha**2)
-        - 2*torch.sum(torch.sqrt(torch.linalg.eigvalsh(X_alpha @ Y_alpha**2 @ X_alpha)))
-    )
+
+    X_alpha_2 = X_alpha @ X_alpha
+    Y_alpha_2 = Y_alpha @ Y_alpha
+
+    d = 1/alpha * torch.sqrt(torch.clip(
+        torch.trace(X_alpha_2) + torch.trace(Y_alpha_2)
+        - 2*torch.sum(torch.sqrt(torch.clip(torch.linalg.eigvalsh(X_alpha @ Y_alpha_2 @ X_alpha), min=0.0))),
+        min=0.0
+    ))
     return d
 
 
@@ -517,8 +525,37 @@ def test_measures():
     # TODO: should be the same as cca (if center rdms)
     s = similarity.make("measure/rsatoolbox/rsa-rdm=mahalanobis-compare=cosine")(np.asarray(X), np.asarray(Y))
     print("RSA mahalanobis", s.item())
-    # breakpoint()
 
+
+    # alpha procrustes
+    Kx = make("kernel/linear")(X)
+    Ky = make("kernel/linear")(Y)
+    Kx = make("transform/center_rows_columns")(Kx)
+    Ky = make("transform/center_rows_columns")(Ky)
+
+    # TODO: why is not equal???
+    s1 = make("distance/alpha_procrustes")(Kx, Ky, alpha=2)
+    s2 = make("distance/euclidean")(Kx, Ky)
+    print("Alpha procrustes, alpha=2", s1.item(), s2.item())
+
+    s3 = make("distance/alpha_procrustes")(Kx, Ky, alpha=1/2)
+    # 
+    # alpha procrustes distance with alpha 1/2 = 2 * Bures-Wassertein distance (https://arxiv.org/pdf/1908.09275)
+    s4 = 2*make("distance/bures")(Kx, Ky)
+    print("Alpha procrustes, alpha=0.5", s3.item(), s4.item())
+    assert np.allclose(s3.item(), s4.item())
+    assert np.allclose(s1.item(), s2.item())
+
+    # TODO: different alpha procrustes distances not just taking the alpha th root of the kernel matrix?
+    # def matrix_sqrt(X):
+    #     sX, uX = torch.linalg.eigh(X)
+    #     return uX @ (torch.sqrt(torch.clip(sX[:, None], min=0.0)) * uX.T)
+    # Kx_sqrt = matrix_sqrt(Kx)
+    # Ky_sqrt = matrix_sqrt(Ky)
+    # s5 = make("distance/alpha_procrustes")(Kx_sqrt, Ky_sqrt, alpha=2)
+    # s6 = make("distance/euclidean")(Kx_sqrt, Ky_sqrt)
+    # print(s5, s6)
+    breakpoint()
 
 
 def reshape2d(X, Y, to_tensor=True):
