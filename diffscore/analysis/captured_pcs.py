@@ -59,6 +59,13 @@ def projected_r2(X, Y, orth=False):
 
         R2i = 1 - np.sum((xi - xi_pred) ** 2) / np.sum(xi ** 2)
 
+
+        # other way to compute R2 for each PC
+        # bi = np.linalg.lstsq(Y, xi, rcond=None)[0]
+        # xi_pred_bis = Y @ bi
+        # R2i_bis = 1 - np.sum((xi - xi_pred_bis) ** 2) / np.sum(xi ** 2)
+        # assert np.allclose(R2i, R2i_bis)
+
         # reshape to temporal data
         if X.ndim == 3:
             xi = xi.reshape(n_steps, n_trials)
@@ -268,6 +275,10 @@ def pipeline_optim_score(dataset, measure, stop_score, decoder="logistic", condi
 
     fit_res = fit_measure(dataset=X, measure=measure, stop_crit=stop_score, **kwargs)
     Ys, scores = fit_res["fitted_datasets"], fit_res["scores"]
+
+    # fit_res = optimize(dataset=dataset, measure=measure, stop_score=stop_score, **kwargs)
+    # Ys = fit_res.Ys
+    # scores = fit_res.scores
 
     # TODO: give very low R2
     # pc_res = pc_captured_variance(

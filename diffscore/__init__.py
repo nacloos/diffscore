@@ -1,56 +1,37 @@
-# use similarity's registration system
-import similarity
+
+registry = {}
+
+
+def register(id, obj=None):
+    def _register(id, obj):
+        registry[id] = obj
+
+    if obj is None:
+        def decorator(obj):
+            _register(id, obj)
+            return obj
+        return decorator
+    else:
+        _register(id, obj)
 
 
 def make(id, *args, **kwargs):
-    if "diffscore" in id:
-        raise ValueError(f"Don't include 'diffscore' in id, {id}")
-    assert len(id.split('.')) == 2, f"Invalid id {id}, must be of the form 'type.name'"
-    # insert backend prefix
-    # e.g. measure.cka => measure.diffscore.cka
-    id = f"{id.split('.')[0]}.diffscore.{id.split('.')[1]}"
-    return similarity.make(id, *args, **kwargs)
-
-
-def register(id, *args, **kwargs):
-    if "diffscore" in id:
-        raise ValueError(f"Don't include 'diffscore' in id, {id}")
-    assert len(id.split('.')) == 2, f"Invalid id {id}, must be of the form 'type.name'"
-    # insert backend prefix
-    id = f"{id.split('.')[0]}.diffscore.{id.split('.')[1]}"
-    return similarity.register(id, *args, **kwargs)
+    return registry[id]
 
 
 class Env:
     def __new__(cls, env_id: str, *args, **kwargs):
-        if similarity.is_registered(f"env.diffscore.{env_id}"):
-            return similarity.make(f"env.diffscore.{env_id}", *args, **kwargs)
-        else:
-            raise ValueError(f"Env {env_id} not found in repository")
+        return make(f"env/{env_id}", *args, **kwargs)
 
 
 class Measure:
-    def __new__(cls, measure_id: str, *args, **kwargs) -> similarity.MeasureInterface:
-        if "diffscore" in measure_id:
-            print("Deprecation warning: don't include 'diffscore' in measure_id")
-            measure_id = measure_id.replace("diffscore.", "")
-
-        return similarity.make(f"measure.diffscore.{measure_id}", *args, **kwargs)
-
-
-class Card:
-    def __new__(cls, card_id: str) -> dict:
-        if similarity.is_registered(f"card.{card_id}"):
-            return similarity.make(f"card.{card_id}")
-        else:
-            # TODO: default card?
-            print(f"Card {card_id} not found in repository")
-            return {"props": []}
-
+    def __new__(cls, measure_id: str, *args, **kwargs):
+        return make(f"measure/{measure_id}", *args, **kwargs)
+    
 
 class Dataset:
     def __new__(cls, dataset_id: str, *args, **kwargs):
-        return similarity.make(f"dataset.diffscore.{dataset_id}", *args, **kwargs)
+        return make(f"dataset/{dataset_id}", *args, **kwargs)()
 
 
 # important to place imports after class definitions because use the classes in the imports
@@ -63,4 +44,4 @@ from diffscore import env
 from diffscore import training
 
 from diffscore.training import fit_measure, optimize, OptimResult
-from diffscore.analysis import pipeline_optim_score
+from diffscore.analysis import pipeline_optim_score, optim_square

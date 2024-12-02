@@ -4,9 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 
-from diffscore import Measure, Dataset, fit_measure, pipeline_optim_score
-from diffscore_exp import make
-
+from diffscore import Measure, Dataset
+from .captured_pcs import pipeline_optim_score
 
 fig_dir = Path(__file__).parent / "figures" / "adversarial_optim_square" / "test"
 
@@ -66,6 +65,18 @@ def optim_target_scores(measure1, measure2, X, target_score1, target_score2, Y0=
 
 
 def optim_square(measure1_id, measure2_id, dataset_id, N, n_iter, plot_nbs_bounds=False, save_dir=None, verbose=True, **kwargs):
+    """
+    Optimize two measures to reach values on the [0, 1] x [0, 1] square.
+
+    Args:
+        measure1_id: ID of the first measure.
+        measure2_id: ID of the second measure.
+        dataset_id: ID of the dataset.
+        N: Number of points on each side of the square.
+        n_iter: Number of optimization iterations.
+        plot_nbs_bounds: Whether to plot the NBS bounds.
+        save_dir: Directory to save the results.
+    """
     Y0 = None
 
     measure1 = Measure(measure1_id)
@@ -87,10 +98,10 @@ def optim_square(measure1_id, measure2_id, dataset_id, N, n_iter, plot_nbs_bound
     #     (target_scores[:, 0] == 0) | (target_scores[:, 0] == 1) | (target_scores[:, 1] == 0) | (target_scores[:, 1] == 1)
     # ]
     targets = np.linspace(0, 1, N)
-    target_scores = [(target, 0) for target in targets] + \
-        [(1, target) for target in targets] + \
-        [(target, 1) for target in reversed(targets)] + \
-        [(0, target) for target in reversed(targets)]
+    target_scores = [(target, 0) for target in targets[:-1]] + \
+        [(1, target) for target in targets[:-1]] + \
+        [(target, 1) for target in reversed(targets[1:])] + \
+        [(0, target) for target in reversed(targets[1:])]
 
     Y0 = np.random.randn(*X.shape)
     results = []
@@ -101,6 +112,8 @@ def optim_square(measure1_id, measure2_id, dataset_id, N, n_iter, plot_nbs_bound
         res = optim_target_scores(measure1, measure2, X, target_score1, target_score2, Y0=Y0, n_iter=n_iter, save_dir=_save_dir, **kwargs)
         Y0 = res["Y0"] if Y0 is None else Y0
         results.append(res)
+
+        plt.close("all")
 
     # plt.figure(figsize=(3, 3), dpi=150)
     plt.figure(figsize=(1.5, 1.5), dpi=150)
@@ -180,49 +193,44 @@ def optim_square(measure1_id, measure2_id, dataset_id, N, n_iter, plot_nbs_bound
         plt.savefig(save_dir / f"{measure1_id}_{measure2_id}_{dataset_id}.pdf")
 
     # for each target score, plot measure1_scores and measure2_scores vs iterations
-    for i, res in enumerate(results):
-        _save_dir = save_dir / f"{target_scores[i][0]}_{target_scores[i][1]}" if save_dir is not None else None
-        plt.figure(figsize=(1.5, 1.5), dpi=150)
-        plt.plot(res["measure1_scores"], color="cornflowerblue", label=measure1_id)
-        plt.plot(res["measure2_scores"], color="coral", label=measure2_id)
-        # plot target score as horizontal line
-        plt.axhline(target_scores[i][0], color="cornflowerblue", linestyle="--")
-        plt.axhline(target_scores[i][1], color="coral", linestyle="--")
+    # for i, res in enumerate(results):
+    #     _save_dir = save_dir / f"{target_scores[i][0]}_{target_scores[i][1]}" if save_dir is not None else None
+    #     plt.figure(figsize=(1.5, 1.5), dpi=150)
+    #     plt.plot(res["measure1_scores"], color="cornflowerblue", label=measure1_id)
+    #     plt.plot(res["measure2_scores"], color="coral", label=measure2_id)
+    #     # plot target score as horizontal line
+    #     plt.axhline(target_scores[i][0], color="cornflowerblue", linestyle="--")
+    #     plt.axhline(target_scores[i][1], color="coral", linestyle="--")
 
-        ax = plt.gca()
-        ax.spines["top"].set_visible(False)
-        ax.spines["right"].set_visible(False)
-        plt.xlabel("Iteration")
-        plt.ylabel("Score")
-        plt.tight_layout()
-        if save_dir is not None:
-            plt.savefig(_save_dir / f"{measure1_id}_{measure2_id}_{dataset_id}.png")
-            plt.savefig(_save_dir / f"{measure1_id}_{measure2_id}_{dataset_id}.pdf")
-
-
-from dataclasses import dataclass
-
-@dataclass
-class SquareResult:
-    target_scores: np.ndarray
-    scores: np.ndarray
-    Ys: np.ndarray
-    X: np.ndarray
+    #     ax = plt.gca()
+    #     ax.spines["top"].set_visible(False)
+    #     ax.spines["right"].set_visible(False)
+    #     plt.xlabel("Iteration")
+    #     plt.ylabel("Score")
+    #     plt.tight_layout()
+    #     if save_dir is not None:
+    #         plt.savefig(_save_dir / f"{measure1_id}_{measure2_id}_{dataset_id}.png")
+    #         plt.savefig(_save_dir / f"{measure1_id}_{measure2_id}_{dataset_id}.pdf")
 
 
-# TODO?
-@dataclass
-class OptimParams:
-    lr: float
-    optimizer: str
-    max_iter: int
-    stop_score: float
+# from dataclasses import dataclass
+
+# @dataclass
+# class SquareResult:
+#     target_scores: np.ndarray
+#     scores: np.ndarray
+#     Ys: np.ndarray
+#     X: np.ndarray
 
 
-def square(dataset, measure1, measure2, N, n_iter):
-    optim_square(measure1, measure2, dataset, N, n_iter)
+# # TODO?
+# @dataclass
+# class OptimParams:
+#     lr: float
+#     optimizer: str
+#     max_iter: int
+#     stop_score: float
 
 
-
-
-
+# def square(dataset, measure1, measure2, N, n_iter):
+#     optim_square(measure1, measure2, dataset, N, n_iter)
