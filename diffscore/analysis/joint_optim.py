@@ -6,7 +6,7 @@ import torch
 import matplotlib.pyplot as plt
 
 import diffscore
-import diffscore.analysis.new_measures
+import diffscore.analysis.similarity_measures
 
 
 save_dir = Path(__file__).parent / "results" / "joint_optim"
@@ -197,10 +197,12 @@ if __name__ == "__main__":
     n_iter = 1000
     N = 5
 
-    save_dir = save_dir / f"lr={lr}-n_iter={n_iter}-N={N}"
 
-    # X0, Y0 = np.random.randn(30, 20), np.random.randn(30, 20)
-    X0, Y0 = np.random.randn(20, 10), np.random.randn(20, 10)
+    shape = (20, 10)
+    # shape = (20, 2)
+    X0, Y0 = np.random.randn(*shape), np.random.randn(*shape)
+
+    save_dir = save_dir / f"lr={lr}-n_iter={n_iter}-N={N}-shape={shape}"
 
     measure_ids = [
         # ("cka", "procrustes-angular-score"),
@@ -208,12 +210,44 @@ if __name__ == "__main__":
         # ("cka-kernel=linear-hsic=gretton-score", "cka-kernel=linear-hsic=lange-score"),
         # ("nbs", "procrustes-angular_score"),
         # ("nbs", "procrustes-score"),
-        # ("cca-score", "procrustes-angular_score"),
+        ("cca-score", "procrustes-angular_score"),
         # ("cca-squared_score", "procrustes-angular_score"),
-        (
-            "kernel=(centered-whitened-linear)-similarity=cosine-score",
-            "kernel=(centered-linear)-similarity=cosine-score"
-        )
+        # (
+        #     "kernel=(centered-whitened-linear)-similarity=cosine-score",
+        #     "kernel=(centered-linear)-similarity=cosine-score"
+        # ),
+        # ("cka", "kernel=linear-similarity=(centered-cosine)-score"),
+
+        # ("cka", "rdm=squared_euclidean-similarity=cosine-score"),
+        # ("cka", "rdm=squared_euclidean-similarity=(centered-cosine)-score"),
+        # ("rdm=squared_euclidean-similarity=(centered-cosine)-score", "rdm=squared_euclidean-similarity=cosine-score"),
+
+        # (
+        #     "kernel=linear-similarity=(centered-cosine)-angular_score",
+        #     "kernel=linear-similarity=(centered-bures)-angular_score"
+        # ),
+        # (
+        #     "kernel=linear-similarity=(centered-cosine)-score",
+        #     "kernel=linear-similarity=(centered-bures)-angular_score"
+        # ),
+        # (
+        #     "rdm=correlation-similarity=cosine-score",
+        #     "rdm=squared_euclidean-similarity=cosine-score"
+        # ),
+        # {
+        #     "rdm=squared_euclidean-similarity=cosine-score",
+        #     "rdm=squared_euclidean-similarity=upper_triangular_correlation-score"
+        # },
+        # {
+        #     "rdm=squared_euclidean-similarity=(centered-zero_diagonal-cosine)-score",
+        #     "rdm=squared_euclidean-similarity=upper_triangular_correlation-score"
+        # },
+
+
+        # (
+        #     "rdm=squared_euclidean-similarity=cosine-score",
+        #     "rdm=correlation-similarity=cosine-score"
+        # ),
     ]
     for measure1_id, measure2_id in measure_ids:
         _save_dir = save_dir / f"{measure1_id}-{measure2_id}"

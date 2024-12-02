@@ -259,6 +259,63 @@ def rsa_correlation_corr(X, Y):
     return rsa(X, Y)
 
 
+def kernel_to_rdm(K):
+    return torch.diag(K)[:, None] + torch.diag(K)[None, :] - 2 * K
+
+
+def linear_kernel(X):
+    return X @ X.T
+
+
+@register("measure/rsa-euclidean-cosine")
+def rsa_euclidean_cosine(X, Y):
+    X, Y = reshape2d(X, Y)
+    rdmX = kernel_to_rdm(linear_kernel(X))
+    rdmY = kernel_to_rdm(linear_kernel(Y))
+    return torch.trace(rdmX@rdmY) / (torch.linalg.norm(rdmX)*torch.linalg.norm(rdmY))
+
+
+@register("measure/rsa-euclidean-centered-cosine")
+def rsa_euclidean_centered_cosine(X, Y):
+    X, Y = reshape2d(X, Y)
+    rdmX = kernel_to_rdm(linear_kernel(X))
+    rdmY = kernel_to_rdm(linear_kernel(Y))
+    rdmX = centering(rdmX)
+    rdmY = centering(rdmY)
+    return torch.trace(rdmX@rdmY) / (torch.linalg.norm(rdmX)*torch.linalg.norm(rdmY))
+
+@register("measure/rsa-correlation-cosine")
+def rsa_correlation_cosine(X, Y):
+    def corr_rdm(X):
+        X_centered = X - X.mean(dim=1, keepdim=True)
+        X_centered = X_centered / torch.sqrt(torch.clip(torch.sum(X_centered**2, dim=1, keepdim=True), min=1e-8))
+        return 1 - X_centered @ X_centered.T
+
+    X, Y = reshape2d(X, Y)
+    rdmX = corr_rdm(X)
+    rdmY = corr_rdm(Y)
+    return torch.trace(rdmX@rdmY) / (torch.linalg.norm(rdmX)*torch.linalg.norm(rdmY))
+
+
+@register("measure/rsa-euclidean-corr")
+def rsa_euclidean_corr(X, Y):
+    X, Y = reshape2d(X, Y)
+    R1 = kernel_to_rdm(linear_kernel(X))
+    R2 = kernel_to_rdm(linear_kernel(Y))
+
+    triu_indices = torch.triu_indices(R1.shape[0], R1.shape[1], offset=1)
+    r1 = R1[triu_indices[0], triu_indices[1]]
+    r2 = R2[triu_indices[0], triu_indices[1]]
+    r1_mean = r1.mean()
+    r2_mean = r2.mean()
+    # center the vectors
+    r1 = r1 - r1_mean
+    r2 = r2 - r2_mean
+    # compute correlation
+    return torch.sum(r1*r2) / (torch.linalg.norm(r1) * torch.linalg.norm(r2))
+
+
+
 @register("measure/procrustes-angular")
 def procrustes_angular(X, Y):
     cca = RegCCA(alpha=1)
@@ -415,7 +472,7 @@ register("measure/linreg-angular-cv", partial(linreg_cv, arccos=True))
 
 
 @register("measure/linreg-r2#5folds_cv")
-def measure_linreg(zero_pad=True, alpha=0, n_splits=5, agg_fun="r2"):
+def measure_linreg(X, Y,zero_pad=True, alpha=0, n_splits=5, agg_fun="r2"):
     class LinRegScore:
         def fit(self, X, Y):
             # zero padding
@@ -459,31 +516,29 @@ def measure_linreg(zero_pad=True, alpha=0, n_splits=5, agg_fun="r2"):
 
     linreg = LinRegScore()
 
-    def _fit_score(X, Y):
-        X, Y = reshape2d(X, Y)
+    X, Y = reshape2d(X, Y)
 
-        if n_splits is None:
-            linreg.fit(X, Y)
-            score = linreg.score(X, Y)
-            return score
-
-        # cross val over time and conditions concatenated
-        kfold = KFold(n_splits=n_splits, shuffle=False)
-        scores = torch.zeros(n_splits)
-        for i, (train_index, test_index) in enumerate(kfold.split(X)):
-            fit_X = X[train_index]
-            val_X = X[test_index]
-
-            fit_Y = Y[train_index]
-            val_Y = Y[test_index]
-
-            linreg.fit(fit_X, fit_Y)
-            score = linreg.score(val_X, val_Y)
-            scores[i] = score
-        score = torch.mean(scores)
+    if n_splits is None:
+        linreg.fit(X, Y)
+        score = linreg.score(X, Y)
         return score
 
-    return _fit_score
+    # cross val over time and conditions concatenated
+    kfold = KFold(n_splits=n_splits, shuffle=False)
+    scores = torch.zeros(n_splits)
+    for i, (train_index, test_index) in enumerate(kfold.split(X)):
+        fit_X = X[train_index]
+        val_X = X[test_index]
+
+        fit_Y = Y[train_index]
+        val_Y = Y[test_index]
+
+        linreg.fit(fit_X, fit_Y)
+        score = linreg.score(val_X, val_Y)
+        scores[i] = score
+    score = torch.mean(scores)
+    return score
+
 
 
 # register(
@@ -591,20 +646,17 @@ for n_splits in [None, 5]:
             cv = "no_cv" if n_splits is None else f"{n_splits}folds_cv"
             # print("registering", f"measure.{name}-{agg_fun}#{cv}")
             register(
-                f"measure.{name}-{agg_fun}#{cv}",
+                f"measure/{name}-{agg_fun}#{cv}",
                 partial(measure_linreg, alpha=alpha, n_splits=n_splits, agg_fun=agg_fun)
             )
 
 # linear regression symmetric
-def measure_linreg_sym(zero_pad=True, alpha=0, n_splits=5, agg_fun="r2"):
+def measure_linreg_sym(X, Y, zero_pad=True, alpha=0, n_splits=5, agg_fun="r2"):
     linreg = measure_linreg(zero_pad=zero_pad, alpha=alpha, n_splits=n_splits, agg_fun=agg_fun)
 
-    def _fit_score(X, Y):
-        score1 = linreg(X, Y)
-        score2 = linreg(Y, X)
-        return (score1 + score2) / 2
-
-    return _fit_score
+    score1 = linreg(X, Y)
+    score2 = linreg(Y, X)
+    return (score1 + score2) / 2
 
 
 for n_splits in [None, 5]:
@@ -614,7 +666,7 @@ for n_splits in [None, 5]:
             cv = "no_cv" if n_splits is None else f"{n_splits}folds_cv"
             # print("registering", f"measure.{name}-{agg_fun}-sym#{cv}")
             register(
-                f"measure.{name}-{agg_fun}-sym#{cv}",
+                f"measure/{name}-{agg_fun}-sym#{cv}",
                 partial(measure_linreg_sym, alpha=alpha, n_splits=n_splits, agg_fun=agg_fun)
             )
 
@@ -771,7 +823,26 @@ def cka_hsic_song():
 
 if __name__ == "__main__":
     import similarity
-    X, Y = np.random.rand(10, 15, 5), np.random.rand(10, 15, 5)
+    X, Y = np.random.rand(10, 5), np.random.rand(10, 5)
+
+    rsa1 = make("measure/rsa-euclidean-cosine")(torch.as_tensor(X), torch.as_tensor(Y))
+    rsa2 = similarity.make("measure/rsatoolbox/rsa-rdm=squared_euclidean-compare=cosine")(X, Y)
+    print(rsa1, rsa2)
+    assert np.allclose(rsa1, rsa2)
+
+
+    rsa1 = make("measure/rsa-correlation-cosine")(torch.as_tensor(X), torch.as_tensor(Y))
+    rsa2 = similarity.make("measure/rsatoolbox/rsa-rdm=correlation-compare=cosine")(X, Y)
+    print(rsa1, rsa2)
+    assert np.allclose(rsa1, rsa2)
+
+    rsa1 = make("measure/rsa-euclidean-corr")(torch.as_tensor(X), torch.as_tensor(Y))
+    rsa2 = similarity.make("measure/rsatoolbox/rsa-rdm=squared_euclidean-compare=corr")(X, Y)
+    print(rsa1, rsa2)
+    assert np.allclose(rsa1, rsa2)
+    breakpoint()
+
+
     cka = similarity.make("measure.kornblith19.cka-hsic_song")
     cka2 = similarity.make("measure.diffscore.cka-hsic_song")
 

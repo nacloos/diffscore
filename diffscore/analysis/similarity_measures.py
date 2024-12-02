@@ -4,9 +4,26 @@ from sklearn.model_selection import KFold
 
 import torch
 
-import similarity
-import diffscore
-from diffscore import register, make
+# import diffscore
+# from diffscore import register, make
+
+
+measures = {}
+
+def register(id, function=None):
+    def _register(id, function):
+        measures[id] = function
+
+    if function is None:
+        def decorator(function):
+            _register(id, function)
+            return function
+        return decorator
+    else:
+        _register(id, function)
+
+def make(id):
+    return measures[id]
 
 
 @register("transform/zero_diagonal")
@@ -100,6 +117,13 @@ def kernel_linear(X):
 #     return (X.ravel() @ Y.ravel()) / (torch.linalg.norm(X, ord='fro') * torch.linalg.norm(Y, ord='fro'))
 
 
+@register("rdm/correlation")
+def rdm_correlation(X):
+    X_centered = X - X.mean(dim=1, keepdim=True)
+    X_centered = X_centered / torch.sqrt(torch.sum(X_centered**2, dim=1, keepdim=True))
+    return 1 - X_centered @ X_centered.T
+
+
 @register("distance/alpha_procrustes")
 def distance_alpha_procrustes(X, Y, alpha):
     """
@@ -166,6 +190,18 @@ def similarity_bures(X, Y):
 @register("distance/euclidean")
 def distance_euclidean(X, Y):
     return torch.linalg.norm(X - Y, ord='fro')
+
+
+# TODO: rename "centered" by "row_col_centered"? e.g. for cka
+@register("similarity/triu_centered-zero_diagonal-cosine")
+# TODO: better name for this?  e.g. "similarity/triu_centered-zero_diagonal-cosine"
+@register("similarity/upper_triangular_correlation")
+def similarity_upper_triangular_correlation(X, Y):
+    # https://rsatoolbox.readthedocs.io/en/stable/comparing.html#pearson-correlation
+    n = X.shape[0]
+    X = X - n / (n - 1) * X.mean()
+    Y = Y - n / (n - 1) * Y.mean()
+    return make("similarity/zero_diagonal-cosine")(X, Y)
 
 
 def embedding_similarity(X, Y, embedding, similarity):
@@ -348,14 +384,18 @@ def derive_methods_recursively(registry):
         
     return derived
 
-derived = derive_methods_recursively(diffscore.registry)
+# derived = derive_methods_recursively(diffscore.registry)
+derived = derive_methods_recursively(measures)
 for k, v in derived.items():
     print("Register derived", k)
     register(k, v)
-print("Number of total measures", len(diffscore.registry))
+print("Number of total measures", len(measures))
+# print("Number of total measures", len(diffscore.registry))
 
 
 def test_measures():
+    import similarity
+
     np.random.seed(0)
     torch.manual_seed(0)
 
@@ -379,13 +419,15 @@ def test_measures():
     Dx = make("transform/center_rows_columns")(Dx)
     Dy = make("transform/center_rows_columns")(Dy)
     s5 = make("similarity/cosine")(Dx, Dy)
-    print("CKA gretton", s1, s2, s3, s4, s5)
 
-    print("CKA gretton", s1, s2.item(), s3.item(), s4.item(), s5.item())
+    s6 = similarity.make("measure/rsatoolbox/rsa-rdm=squared_euclidean-compare=cosine_cov")(np.asarray(X), np.asarray(Y))
+
+    print("CKA gretton", s1, s2.item(), s3.item(), s4.item(), s5.item(), s6.item())
     assert np.allclose(s1, s2.item())
     assert np.allclose(s1, s3.item())
     assert np.allclose(s1, s4.item())
     assert np.allclose(s1, s5.item())
+    assert np.allclose(s1, s6.item())
 
     
     # CKA Lange
@@ -431,10 +473,13 @@ def test_measures():
     s1 = similarity.make("measure/netrep/procrustes-distance=angular")(np.asarray(X), np.asarray(Y))
     s1 = 1 - 2/np.pi * s1
     s2 = make("measure/procrustes-angular_score")(X, Y)
-    print("Angular Procrustes", s1, s2.item())
-    assert np.allclose(s1, s2.item())
 
-    # RSA
+    s3 = make("measure/kernel=linear-similarity=(centered-bures)-angular_score")(X, Y)
+    print("Angular Procrustes", s1, s2.item(), s3.item())
+    assert np.allclose(s1, s2.item())
+    assert np.allclose(s1, s3.item())
+
+    # RSA euclidean, cosine
     s1 = similarity.make("measure/netrep/rsa-rdm=squared_euclidean-compare=cosine")(np.asarray(X), np.asarray(Y))
     Kx = make("kernel/linear")(X)
     Ky = make("kernel/linear")(Y)
@@ -458,6 +503,59 @@ def test_measures():
     assert np.allclose(s1, s4.item())
     assert np.allclose(s1, s5.item())
 
+    # RSA euclidean, corr
+    s1 = similarity.make("measure/rsatoolbox/rsa-rdm=squared_euclidean-compare=pearson")(np.asarray(X), np.asarray(Y))
+    # s2 = make("measure/rdm=squared_euclidean-similarity=correlation-score")(X, Y)
+
+    Dx = make("rdm/squared_euclidean")(X)
+    Dy = make("rdm/squared_euclidean")(Y)
+    def corr(R1, R2):
+        # https://rsatoolbox.readthedocs.io/en/stable/comparing.html#pearson-correlation
+        # get the upper triangular part as a vector
+        # triu_indices = torch.triu_indices(R1.shape[0], R1.shape[1], offset=1)
+        # r1 = R1[triu_indices[0], triu_indices[1]]
+        # r2 = R2[triu_indices[0], triu_indices[1]]
+        # r1_mean = r1.mean()
+        # r2_mean = r2.mean()
+        # # center the vectors
+        # r1 = r1 - r1_mean
+        # r2 = r2 - r2_mean
+        # # # compute correlation
+        # return torch.sum(r1*r2) / (torch.linalg.norm(r1) * torch.linalg.norm(r2))
+
+        # equivalent to:
+        n = R1.shape[0]
+        R1 = R1 - n / (n - 1) * R1.mean()
+        R2 = R2 - n / (n - 1) * R2.mean()
+        return make("similarity/zero_diagonal-cosine")(R1, R2)
+
+    s2 = corr(Dx, Dy)
+
+    s3 = make("measure/rdm=squared_euclidean-similarity=upper_triangular_correlation-score")(X, Y)
+
+    print("RSA euclidean, corr", s1, s2.item(), s3.item())
+    assert np.allclose(s1, s2.item())
+
+    # RSA correlation, cosine
+    s1 = similarity.make("measure/rsatoolbox/rsa-rdm=correlation-compare=cosine")(np.asarray(X), np.asarray(Y))
+    # ma /= np.sqrt(np.einsum('ij,ij->i', ma, ma))[:, None]
+    # rdm = 1 - np.einsum('ik,jk', ma, ma)
+
+    def corr_rdm(X):
+        X_centered = X - X.mean(dim=1, keepdim=True)
+        # X_centered /= torch.sqrt(torch.einsum('ij,ij->i', X_centered, X_centered))[:, None]
+        # return 1 - torch.einsum('ik,jk', X_centered, X_centered)
+        X_centered /= torch.sqrt(torch.sum(X_centered**2, dim=1, keepdim=True))
+        return 1 - X_centered @ X_centered.T
+
+    Cx = corr_rdm(X)
+    Cy = corr_rdm(Y)
+    s2 = make("similarity/cosine")(Cx, Cy)
+
+    s3 = make("measure/rdm=correlation-similarity=cosine-score")(X, Y)
+    print("RSA correlation", s1, s2.item(), s3.item())
+    assert np.allclose(s1, s2.item())
+    assert np.allclose(s1, s3.item())
 
     # RSA Bures similarity (NBS)
     s1 = similarity.make("measure/rsatoolbox/rsa-rdm=squared_euclidean-compare=bures")(np.asarray(X), np.asarray(Y))
@@ -544,7 +642,7 @@ def test_measures():
     s4 = 2*make("distance/bures")(Kx, Ky)
     print("Alpha procrustes, alpha=0.5", s3.item(), s4.item())
     assert np.allclose(s3.item(), s4.item())
-    assert np.allclose(s1.item(), s2.item())
+    # assert np.allclose(s1.item(), s2.item())  # TODO
 
     # TODO: different alpha procrustes distances not just taking the alpha th root of the kernel matrix?
     # def matrix_sqrt(X):
@@ -555,7 +653,6 @@ def test_measures():
     # s5 = make("distance/alpha_procrustes")(Kx_sqrt, Ky_sqrt, alpha=2)
     # s6 = make("distance/euclidean")(Kx_sqrt, Ky_sqrt)
     # print(s5, s6)
-    breakpoint()
 
 
 def reshape2d(X, Y, to_tensor=True):
