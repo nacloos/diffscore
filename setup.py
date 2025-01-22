@@ -8,7 +8,7 @@ setup(
               if package.startswith('diffscore')],
     install_requires=[
         'pytorch_lightning',
-        'neurogym',
+        'neurogym==0.0.2',
         # 'brainscore_vision @ git+https://github.com/brain-score/vision',
         'similarity-repository @ git+https://github.com/nacloos/similarity-repository.git'
     ],
