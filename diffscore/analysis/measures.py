@@ -652,7 +652,7 @@ for n_splits in [None, 5]:
 
 # linear regression symmetric
 def measure_linreg_sym(X, Y, zero_pad=True, alpha=0, n_splits=5, agg_fun="r2"):
-    linreg = measure_linreg(zero_pad=zero_pad, alpha=alpha, n_splits=n_splits, agg_fun=agg_fun)
+    linreg = partial(measure_linreg, zero_pad=zero_pad, alpha=alpha, n_splits=n_splits, agg_fun=agg_fun)
 
     score1 = linreg(X, Y)
     score2 = linreg(Y, X)
@@ -700,33 +700,29 @@ def kfold_crossval(measure, n_splits=5):
 
 
 @register("measure/procrustes-angular#5folds_cv")
-def _():
+def procrustes_angular_cv(X, Y, n_splits=5):
     measure = RegCCA(alpha=1)
-    return kfold_crossval(measure=measure, n_splits=5)
+    return kfold_crossval(measure=measure, n_splits=n_splits)(X, Y)
 
 
 @register("measure/procrustes-angular-score#5folds_cv")
-def _():
+def procrustes_angular_score_cv(X, Y, n_splits=5):
     measure = RegCCA(alpha=1, scoring_method="euclidean")
-    def _fit_score(X, Y):
-        return 1 - measure(X, Y) / (np.pi/2)
-    return _fit_score
+    return kfold_crossval(measure=measure, n_splits=n_splits)(X, Y)
 
 
-@register("measure/procrustes-euclidean-score")
-def _():
+@register("measure/procrustes-euclidean-score#5folds_cv")
+def procrustes_euclidean_score_cv(X, Y, n_splits=5):
     measure = RegCCA(alpha=1)
-    def _fit_score(X, Y):
-        return 1 - kfold_crossval(measure=measure, n_splits=5)(X, Y) / (np.pi/2)
-    return _fit_score
+    return kfold_crossval(measure=measure, n_splits=n_splits)(X, Y)
 
 
 def test_pytorch_metric(dataset, metric_id):
     data = dataset.get_activity()
     cond_avg = data.mean(axis=1, keepdims=True).repeat(data.shape[1], axis=1)
 
-    metric = make(f"measure.{metric_id}")
-    metric2 = similarity.make(f"measure.{metric_id}")
+    metric = make(f"measure/{metric_id}")
+    metric2 = similarity.make(f"measure/{metric_id}")
 
     score = metric(data, cond_avg)
     score2 = metric2.fit_score(data, cond_avg)
@@ -793,7 +789,7 @@ def ensd(X, Y):
 
 
 @register("measure/cka-hsic_song")
-def cka_hsic_song():
+def cka_hsic_song(X, Y):
     """
     Code adapted from https://github.com/google-research/google-research/blob/master/representation_similarity/Demo.ipynb
     Convert numpy to pytorch

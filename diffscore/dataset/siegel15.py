@@ -105,7 +105,7 @@ register("dataset/siegel15-stim_period-var99", partial(siegel15_data, t_min=0, t
 
 for region in REGIONS:
     register(
-        f"dataset.siegel15-{region}-stim_period",
+        f"dataset/siegel15-{region}-stim_period",
         partial(
             siegel15_data,
             t_min=0,
@@ -113,11 +113,11 @@ for region in REGIONS:
             region=region
         )
     )
-    register(f"dataset.siegel15-{region}-stim_period#paula", partial(siegel15_data, subject="paula", t_min=0, t_max=500, region=region))
-    register(f"dataset.siegel15-{region}-stim_period#rex", partial(siegel15_data, subject="rex", t_min=0, t_max=500, region=region))
+    register(f"dataset/siegel15-{region}-stim_period#paula", partial(siegel15_data, subject="paula", t_min=0, t_max=500, region=region))
+    register(f"dataset/siegel15-{region}-stim_period#rex", partial(siegel15_data, subject="rex", t_min=0, t_max=500, region=region))
 
     register(
-        f"dataset.siegel15-{region}-stim_period-var99",
+        f"dataset/siegel15-{region}-stim_period-var99",
         partial( 
             siegel15_data,
             t_min=0,
@@ -128,7 +128,7 @@ for region in REGIONS:
     )
 
     register(
-        f"dataset.siegel15-{region}-var99",
+        f"dataset/siegel15-{region}-var99",
         partial(
             siegel15_data,
             region=region,
@@ -141,7 +141,7 @@ if __name__ == '__main__':
     import diffscore_exp.analysis
 
     data, conditions = make(
-        "dataset.siegel15",
+        "dataset/siegel15",
         region="V4",
         pca_components=0.99
     )

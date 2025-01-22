@@ -21,7 +21,7 @@ def make(id, *args, **kwargs):
 
 class Env:
     def __new__(cls, env_id: str, *args, **kwargs):
-        return make(f"env/{env_id}", *args, **kwargs)
+        return make(f"env/{env_id}")(*args, **kwargs)
 
 
 class Measure:
@@ -31,7 +31,7 @@ class Measure:
 
 class Dataset:
     def __new__(cls, dataset_id: str, *args, **kwargs):
-        return make(f"dataset/{dataset_id}", *args, **kwargs)()
+        return make(f"dataset/{dataset_id}")(*args, **kwargs)
 
 
 # important to place imports after class definitions because use the classes in the imports

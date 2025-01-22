@@ -28,12 +28,17 @@ def _test_measure_equality(measure1, measure2, n_tries=10):
 
 # TODO: some of the measures don't give some scores for diffscore and other backends
 def test_measures():
-    measures = Measure("*")
+    # measures = Measure("*")
+    measures = {k: v for k, v in diffscore.registry.items() if k.startswith("measure/")}
     for id1, measure1 in measures.items():
         # same measure but different backend implementations
-        measures2 = similarity.make(f"measure.*.{id1.split('.')[-1]}")
+        # measures2 = similarity.make(f"measure/*/{id1.split('/')[-1]}")
+        measures2 = {
+            k: v for k, v in diffscore.registry.items() 
+            if k.startswith("measure/") and k.split('/')[-1] == id1.split('/')[-1]
+        }
         for id2, measure2 in measures2.items():
-            backend = id2.split('.')[1]
+            backend = id2.split('/')[1]
             if backend == "diffscore":
                 continue
 
@@ -65,12 +70,17 @@ def measure_backend_consistency(save_dir=None):
         return np.mean(np.abs(np.array(scores1) - np.array(scores2)))
 
 
-    measures = Measure("*")
+    measures = {k: v for k, v in diffscore.registry.items() if k.startswith("measure/")}
 
     results = defaultdict(list)
     for measure_id, measure in measures.items():
         print("Measure:", measure_id)
-        other_backends = diffscore.make(f"measure.*.{measure_id.split('.')[-1]}")
+        # other_backends = diffscore.make(f"measure/*/{measure_id.split('/')[-1]}")
+        other_backends = {
+            k: v for k, v in diffscore.registry.items() 
+            if k.startswith("measure/") and k.split('/')[-1] == measure_id.split('/')[-1]
+        }
+        
         for other_measure_id, other_measure in other_backends.items():
             print(other_measure_id)
             relative_error = test_measure_equal(measure, other_measure, 50)
@@ -122,11 +132,21 @@ def measure_backend_consistency(save_dir=None):
         results_df.to_csv(save_dir / "backends.csv", index=False)
 
 
-if __name__ == "__main__":
-    save_path = Path(__file__).parent / "results"
-    save_path.mkdir(exist_ok=True)
-    # TODO
-    measure_backend_consistency(save_dir=save_path)
+def test_run_measures():
+    measures = {k: v for k, v in diffscore.registry.items() if k.startswith("measure/")}
+    for measure_id, measure in measures.items():
+        print("Measure:", measure_id)
+        measure(np.random.rand(20, 10, 20), np.random.rand(20, 10, 20))
 
-    test_measures()
-    test_measure_optim()
+
+if __name__ == "__main__":
+    # make sure all the measures can be run
+    test_run_measures()
+
+    # save_path = Path(__file__).parent / "results"
+    # save_path.mkdir(exist_ok=True)
+    # # TODO
+    # measure_backend_consistency(save_dir=save_path)
+
+    # test_measures()
+    # test_measure_optim()
